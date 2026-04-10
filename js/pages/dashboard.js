@@ -232,23 +232,51 @@ function _closePopup() {
 
 /* ── CANCELAR RESERVACIÓN ── */
 function _cancelReservation(id) {
-  if (!confirm('¿Estás seguro de que deseas cancelar esta reservación?')) return;
-
-  const state = Store.getState();
-  const r = state.reservations.find(res => res.id === id);
+  const r = Reservations.getById(id);
   if (!r) return;
 
-  Store.updateReservation(id, {
-    status: 'cancelled',
-    cancelledAt: new Date().toISOString()
-  });
+  const _refresh = () => {
+    _renderStats();
+    Calendar.renderMonth(Calendar.getCurrentYear(), Calendar.getCurrentMonth());
+    _renderUpcoming();
+  };
 
-  Notifications.onReservationCancelled(r);
-  Toast.show('Reservación cancelada correctamente', 'success');
-
-  _renderStats();
-  Calendar.renderMonth(Calendar.getCurrentYear(), Calendar.getCurrentMonth());
-  _renderUpcoming();
+  if (r.isRecurring && r.recurringGroupId) {
+    Modal.choice(
+      {
+        title:       'Cancelar reservación recurrente',
+        message:     `<strong>${Utils.escapeHTML(r.responsible)}</strong> — ${Utils.formatDateLong(r.date)}<br>
+                      Esta reservación pertenece a una serie recurrente.`,
+        option1Text: 'Solo esta instancia',
+        option2Text: 'Toda la serie',
+      },
+      () => {
+        Reservations.cancel(id);
+        Toast.show('Instancia cancelada.', 'success');
+        _refresh();
+      },
+      () => {
+        const count = Recurring.cancelSeries(r.recurringGroupId);
+        Toast.show(`Serie cancelada: ${count} instancia${count !== 1 ? 's' : ''}.`, 'success');
+        _refresh();
+      }
+    );
+  } else {
+    Modal.confirm(
+      {
+        title:       'Cancelar reservación',
+        message:     `¿Cancelar la reservación de <strong>${Utils.escapeHTML(r.responsible)}</strong><br>
+                      el ${Utils.formatDateLong(r.date)}, ${r.startTime}–${r.endTime}?`,
+        confirmText: 'Cancelar reservación',
+        danger:      true,
+      },
+      () => {
+        Reservations.cancel(id);
+        Toast.show('Reservación cancelada.', 'success');
+        _refresh();
+      }
+    );
+  }
 }
 
 /* ── PRÓXIMAS RESERVACIONES ── */

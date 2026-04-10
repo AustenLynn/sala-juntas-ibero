@@ -231,6 +231,13 @@ document.addEventListener('DOMContentLoaded', () => {
       observations: fieldObs.value.trim(),
     };
 
+    // Recurring path (HU-27) — sólo en modo creación
+    if (!isEditMode && recurChk?.checked) {
+      _submitRecurring(data);
+      return;
+    }
+
+    // Normal path
     let result;
     if (isEditMode) {
       result = Reservations.update(editId, data);
@@ -239,7 +246,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (!result.success) {
-      // Conflicto detectado justo antes de guardar (edge-case race)
       _setOverlapStatus('conflict', result.conflictWith);
       Toast.show('No se puede guardar: hay un traslape de horario.', 'error');
       return;
@@ -249,9 +255,43 @@ document.addEventListener('DOMContentLoaded', () => {
       ? 'Reservación actualizada correctamente.'
       : 'Reservación creada correctamente.';
     Toast.show(msg, 'success');
-
-    // Pequeño delay para que el toast sea visible antes de navegar
     setTimeout(() => { window.location.href = _backUrl(); }, 900);
+  }
+
+  /* ── RECURRING SUBMIT ── */
+  function _submitRecurring(data) {
+    const freq    = document.getElementById('field-recur-freq')?.value ?? 'weekly';
+    const rawCount = parseInt(document.getElementById('field-recur-count')?.value ?? '4', 10);
+    const count   = Math.min(Math.max(isNaN(rawCount) ? 4 : rawCount, 2), 52);
+    const endDate = document.getElementById('field-recur-end')?.value || null;
+
+    const { group, instances, skipped } = Recurring.generate({
+      ...data,
+      frequency: freq,
+      count,
+      endDate,
+    });
+
+    if (!instances.length) {
+      Toast.show(
+        'No se generaron instancias. Todos los días están ocupados, son festivos o fin de semana.',
+        'error'
+      );
+      return;
+    }
+
+    Recurring.save({ group, instances });
+
+    const n       = instances.length;
+    const skipMsg = skipped.length
+      ? ` ${skipped.length} fecha${skipped.length !== 1 ? 's' : ''} omitida${skipped.length !== 1 ? 's' : ''} (festivo, fin de semana u ocupado).`
+      : '';
+
+    Toast.show(
+      `Serie creada: ${n} reservación${n !== 1 ? 'es' : ''}.${skipMsg}`,
+      'success'
+    );
+    setTimeout(() => { window.location.href = _backUrl(); }, 1500);
   }
 
   /* ════════════════════════════════════════
