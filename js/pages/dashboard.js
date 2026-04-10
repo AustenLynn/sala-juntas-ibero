@@ -90,11 +90,11 @@ function _initCalendar() {
   });
 }
 
-/* ── CLICK EN DÍA ── */
-function _onDayClick(dateStr) {
-  // Abrir modal de nueva reservación con fecha prellenada
+/* ── CLICK EN DÍA / SLOT ── */
+function _onDayClick(dateStr, hourStr) {
   Store.setState({ selectedDate: dateStr });
-  window.location.href = `reservacion.html?date=${dateStr}`;
+  const params = hourStr ? `?date=${dateStr}&time=${hourStr}` : `?date=${dateStr}`;
+  window.location.href = `reservacion.html${params}`;
 }
 
 /* ── CLICK EN RESERVACIÓN ── */
@@ -304,11 +304,12 @@ function _initEventListeners() {
   // Toggle vista mes/semana
   document.getElementById('view-month')?.addEventListener('click', () => {
     _setViewActive('month');
+    // When switching back from week view, restore the month that was active
     Calendar.renderMonth(Calendar.getCurrentYear(), Calendar.getCurrentMonth());
   });
   document.getElementById('view-week')?.addEventListener('click', () => {
     _setViewActive('week');
-    _renderWeekStub();
+    Calendar.renderWeek(new Date());
   });
 
   // Nueva reservación — topbar y FAB
@@ -327,17 +328,3 @@ function _setViewActive(view) {
   document.getElementById('view-week')?.setAttribute('aria-pressed',  String(view === 'week'));
 }
 
-/* ── VISTA SEMANAL (stub — TAREA 2.4) ── */
-function _renderWeekStub() {
-  const bodyEl = document.getElementById('calendar-body');
-  if (bodyEl) {
-    bodyEl.innerHTML = `
-      <div style="padding:var(--space-8);text-align:center;color:var(--color-secondary-light);">
-        <p>Vista semanal — se implementa en la Tarea 2.4.</p>
-        <button class="btn btn-ghost btn-sm" style="margin-top:var(--space-4);"
-                onclick="document.getElementById('view-month').click()">
-          Volver a vista mensual
-        </button>
-      </div>`;
-  }
-}

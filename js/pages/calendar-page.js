@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('view-week')?.addEventListener('click', () => {
     _setViewActive('week');
-    _renderWeekStub();
+    Calendar.renderWeek(new Date());
   });
 
   Auth.startInactivityWatcher();
@@ -78,10 +78,11 @@ function _setViewActive(view) {
   weekBtn?.setAttribute('aria-pressed',  String(view === 'week'));
 }
 
-/* ── CLICK EN DÍA (secretaria) ── */
-function _onDayClick(dateStr) {
+/* ── CLICK EN DÍA / SLOT (secretaria) ── */
+function _onDayClick(dateStr, hourStr) {
   Store.setState({ selectedDate: dateStr });
-  window.location.href = `reservacion.html?date=${dateStr}`;
+  const params = hourStr ? `?date=${dateStr}&time=${hourStr}` : `?date=${dateStr}`;
+  window.location.href = `reservacion.html${params}`;
 }
 
 /* ── CLICK EN RESERVACIÓN (ambos roles) — HU-06, HU-14 ── */
@@ -223,16 +224,3 @@ function _cancelReservation(r) {
   Calendar.renderMonth(Calendar.getCurrentYear(), Calendar.getCurrentMonth());
 }
 
-/* ── VISTA SEMANAL (stub — TAREA 2.4) ── */
-function _renderWeekStub() {
-  const body = document.getElementById('cal-body');
-  if (!body) return;
-  body.innerHTML = `
-    <div style="padding:var(--space-10);text-align:center;color:var(--color-secondary-light);">
-      <p>Vista semanal — se implementa en la Tarea 2.4.</p>
-      <button class="btn btn-ghost btn-sm" style="margin-top:var(--space-4);"
-              onclick="document.getElementById('view-month').click()">
-        Volver a vista mensual
-      </button>
-    </div>`;
-}
