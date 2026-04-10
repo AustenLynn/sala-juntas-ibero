@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nueva Reservación — Sala de Juntas Ibero</title>
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/reset.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<div class="app">
+
+  <!-- Sidebar (inyectado por Sidebar.init) -->
+  <nav class="sidebar" id="sidebar" role="navigation" aria-label="Menú principal"></nav>
+
+  <div class="main-content">
+    <header class="topbar" role="banner">
+      <button class="topbar__toggle" id="sidebar-toggle"
+              aria-label="Abrir menú" aria-expanded="false">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="6"  x2="21" y2="6"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+      <h1 class="topbar__title" id="page-title">Nueva Reservación</h1>
+      <div class="topbar__actions">
+        <span class="badge badge-primary topbar__badge-role">Secretaria</span>
+        <a href="dashboard.html" class="btn btn-secondary btn-sm">← Volver</a>
+      </div>
+    </header>
+
+    <main class="page-content" role="main" id="reservacion-content">
+      <div style="text-align:center;padding:var(--space-12);color:var(--color-secondary-light);">
+        <p style="margin-bottom:var(--space-4);">
+          El formulario de reservación se implementa en la <strong>Fase 3</strong>.
+        </p>
+        <a href="dashboard.html" class="btn btn-primary">Volver al Dashboard</a>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div id="toast-container" aria-live="polite"></div>
+
+<script src="data/mock-data.js"></script>
+<script src="js/core/utils.js"></script>
+<script src="js/core/store.js"></script>
+<script src="js/components/toast.js"></script>
+<script src="js/components/sidebar.js"></script>
+<script src="js/modules/notifications.js"></script>
+<script src="js/modules/auth.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    Store.init();
+    const user = Auth.requireRole('secretaria');
+    if (!user) return;
+    Sidebar.init('reservacion');
+    Auth.startInactivityWatcher();
+  });
+</script>
+</body>
+</html>

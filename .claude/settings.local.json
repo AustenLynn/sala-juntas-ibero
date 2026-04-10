@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(ls -la *.html css/ js/ data/)",
+      "Bash(xargs ls:*)",
+      "Bash(awk '{print $5, $9}')",
+      "Bash(sort -k2)",
+      "Bash(grep -l \"sidebar__brand-name\" *.html)",
+      "Bash(grep -l \"sidebar.js\" *.html)"
+    ]
+  }
+}
