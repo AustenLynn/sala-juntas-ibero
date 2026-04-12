@@ -42,6 +42,26 @@
       </nav>
       <div class="topbar__actions">
         <span id="topbar-role-badge" class="badge badge-primary topbar__badge-role">Secretaria</span>
+        <div class="export-btn-group" id="export-btn-group" style="display:none;">
+          <button class="btn btn-secondary btn-sm" id="btn-export-excel" title="Exportar a Excel">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            Excel
+          </button>
+          <button class="btn btn-secondary btn-sm" id="btn-export-pdf" title="Exportar a PDF">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="6 9 6 2 18 2 18 9"/>
+              <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
+              <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            PDF
+          </button>
+          <button class="btn btn-ghost btn-sm" id="btn-export-csv" title="Exportar CSV">CSV</button>
+        </div>
       </div>
     </header>
 
@@ -154,6 +174,12 @@
 <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
 <div id="modal-container"></div>
 
+<!-- CDN: jsPDF + autoTable -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<!-- CDN: SheetJS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
 <!-- Scripts -->
 <script src="data/mock-data.js"></script>
 <script src="js/core/utils.js"></script>
@@ -163,6 +189,8 @@
 <script src="js/modules/notifications.js"></script>
 <script src="js/modules/auth.js"></script>
 <script src="js/modules/reservations.js"></script>
+<script src="js/modules/search.js"></script>
+<script src="js/modules/export.js"></script>
 <script src="js/pages/history-page.js"></script>
 
 </body>

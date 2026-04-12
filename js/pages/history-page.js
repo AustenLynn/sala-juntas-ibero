@@ -351,6 +351,22 @@ document.addEventListener('DOMContentLoaded', () => {
     overlay.querySelector('#conf-ok-btn').focus();
   }
 
+  /* ── EXPORT BUTTONS ── */
+  if (isSecretary) {
+    document.getElementById('export-btn-group')?.style.setProperty('display', '');
+    Export.attachExportButtons({
+      pdfBtnId:        'btn-export-pdf',
+      excelBtnId:      'btn-export-excel',
+      csvBtnId:        'btn-export-csv',
+      getReservations: () => _filtered,
+      getOpts:         () => ({
+        title:    'Reservaciones — Sala de Juntas Ibero',
+        dateFrom: filterDateFrom?.value ?? '',
+        dateTo:   filterDateTo?.value   ?? '',
+      }),
+    });
+  }
+
   /* ── INICIO ── */
   _updateSortIndicators();
   _applyFilters();
