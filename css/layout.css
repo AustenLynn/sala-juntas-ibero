@@ -13,7 +13,7 @@
 /* ── SIDEBAR ── */
 .sidebar {
   width: var(--sidebar-width);
-  min-height: 100vh;
+  height: 100vh;
   background: var(--color-secondary);
   display: flex;
   flex-direction: column;
@@ -22,7 +22,7 @@
   left: 0;
   z-index: 200;
   transition: transform var(--transition-normal);
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .sidebar__brand {
@@ -68,6 +68,8 @@
 .sidebar__nav {
   padding: var(--space-4) 0;
   flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .sidebar__nav-section {
