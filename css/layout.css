@@ -26,13 +26,20 @@
 }
 
 .sidebar__brand {
-  padding: var(--space-6) var(--space-5);
+  padding: var(--space-5) var(--space-5);
   border-bottom: 1px solid rgba(255,255,255,0.08);
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  justify-content: center;
   text-decoration: none;
   min-height: var(--header-height);
+}
+
+.sidebar__brand-img {
+  width: 100%;
+  max-width: 160px;
+  height: auto;
+  display: block;
 }
 
 .sidebar__brand-logo {

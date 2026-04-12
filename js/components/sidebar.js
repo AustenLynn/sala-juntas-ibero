@@ -89,16 +89,9 @@ const Sidebar = (() => {
     return `
       <a class="sidebar__brand" href="${role === 'secretaria' ? 'dashboard.html' : 'calendar.html'}"
          aria-label="Ir al inicio">
-        <div class="sidebar__brand-logo" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white"
-               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            ${ICONS.calendar}
-          </svg>
-        </div>
-        <div class="sidebar__brand-text">
-          <span class="sidebar__brand-name">Sala de Juntas</span>
-          <span class="sidebar__brand-sub">Iberoamericana</span>
-        </div>
+        <img src="assets/img/logo-ibero-white.png"
+             alt="Universidad Iberoamericana"
+             class="sidebar__brand-img" />
       </a>
 
       <nav class="sidebar__nav" aria-label="Menú principal">
