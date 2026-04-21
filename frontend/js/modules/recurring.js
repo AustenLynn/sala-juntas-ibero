@@ -108,16 +108,32 @@ const Recurring = (() => {
     const state = Store.getState();
     Store.setState({ recurringGroups: [...state.recurringGroups, group] });
 
-    // Create recurring group in DB first
+    // Create recurring group in DB first and get the actual group ID
+    let actualGroupId = group.id;
+    console.log('Recurring.save: Initial group.id:', group.id);
+
+    // Validate UUID pattern (8-4-4-4-12 hex digits)
+    const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
     try {
-      await API.request('POST', '/recurring-group', {
+      const createdGroup = await API.createRecurringGroup({
         pattern: group.pattern,
         endDate: group.endDate,
         maxOccurrences: group.maxOccurrences
       });
+      console.log('Recurring.save: createdGroup response:', createdGroup);
+
+      // Validate the returned ID is a proper UUID
+      if (createdGroup && createdGroup.id && isUUID(createdGroup.id)) {
+        actualGroupId = createdGroup.id;
+        console.log('Recurring.save: Set actualGroupId to valid UUID:', actualGroupId);
+      } else {
+        console.warn('Recurring.save: Invalid group ID from API:', createdGroup?.id);
+        throw new Error('Invalid group ID from API: ' + createdGroup?.id);
+      }
     } catch (err) {
       console.error('Error creating recurring group:', err);
-      // Continue anyway - group might already exist or we'll catch it when creating instances
+      throw err;
     }
 
     // Save each instance to the API
@@ -132,8 +148,9 @@ const Recurring = (() => {
           end_time: `${r.date}T${r.endTime}:00Z`,
           observations: r.observations,
           is_recurring: true,
-          recurring_group: group.id,
+          recurring_group: actualGroupId,
         };
+        console.log('Recurring.save: Creating instance with actualGroupId:', actualGroupId);
         const apiResponse = await API.createReservation(apiData);
         // Add the API response (properly normalized) to Store
         if (apiResponse) {
