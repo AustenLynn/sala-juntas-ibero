@@ -5,7 +5,7 @@
    Plataforma Reservación Sala de Juntas · Ibero CDMX
    ============================================================ */
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
 
   // 1. Proteger ruta
   Store.init();
@@ -15,6 +15,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // 2. Sidebar
   Sidebar.init('reservacion');
   Auth.startInactivityWatcher();
+
+  // 3. Load data from API if not already loaded (for autocomplete suggestions)
+  const state = Store.getState();
+  if (!state.reservations || state.reservations.length === 0) {
+    try {
+      const [reservations, holidays] = await Promise.all([
+        API.getReservations(),
+        API.getHolidays()
+      ]);
+      Store.setState({ reservations, holidays });
+    } catch (err) {
+      console.error('Error loading data:', err);
+    }
+  }
 
   /* ── PARSEAR URL ── */
   const params    = new URLSearchParams(window.location.search);
@@ -110,12 +124,19 @@ document.addEventListener('DOMContentLoaded', () => {
       fieldDate.value = dateParam;
       _validateField(fieldDate, 'err-date');
     }
-    // Prellenar hora de inicio desde slot semanal
+    // Prellenar hora de inicio desde slot semanal o usar default
     if (timeParam) {
       fieldStart.value = timeParam;
       // Auto-seleccionar +1h como fin
       fieldEnd.value = _addHour(timeParam, 1);
       _onTimeChange();
+    } else {
+      // If no time param, set default times (10:00 - 11:00)
+      if (dateParam) {
+        fieldStart.value = '10:00';
+        fieldEnd.value = '11:00';
+        _onTimeChange();
+      }
     }
     _updateSubmitState();
   }
@@ -263,18 +284,26 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* ── RECURRING SUBMIT ── */
-  function _submitRecurring(data) {
+  async function _submitRecurring(data) {
     const freq    = document.getElementById('field-recur-freq')?.value ?? 'weekly';
     const rawCount = parseInt(document.getElementById('field-recur-count')?.value ?? '4', 10);
     const count   = Math.min(Math.max(isNaN(rawCount) ? 4 : rawCount, 2), 52);
     const endDate = document.getElementById('field-recur-end')?.value || null;
 
-    const { group, instances, skipped } = Recurring.generate({
-      ...data,
+    // Transform data to match Recurring.generate() expectations
+    const recurData = {
+      date: fieldDate.value,
+      startTime: fieldStart.value,
+      endTime: fieldEnd.value,
+      responsible: data.responsible,
+      area: data.area,
+      observations: data.observations,
       frequency: freq,
       count,
       endDate,
-    });
+    };
+
+    const { group, instances, skipped } = Recurring.generate(recurData);
 
     if (!instances.length) {
       Toast.show(
@@ -284,18 +313,30 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    Recurring.save({ group, instances });
+    try {
+      const savedCount = await Recurring.save({ group, instances });
 
-    const n       = instances.length;
-    const skipMsg = skipped.length
-      ? ` ${skipped.length} fecha${skipped.length !== 1 ? 's' : ''} omitida${skipped.length !== 1 ? 's' : ''} (festivo, fin de semana u ocupado).`
-      : '';
+      if (savedCount === 0) {
+        Toast.show('No se guardaron instancias. Intenta nuevamente.', 'error');
+        return;
+      }
 
-    Toast.show(
-      `Serie creada: ${n} reservación${n !== 1 ? 'es' : ''}.${skipMsg}`,
-      'success'
-    );
-    setTimeout(() => { window.location.href = _backUrl(); }, 1500);
+      const skipMsg = skipped.length
+        ? ` ${skipped.length} fecha${skipped.length !== 1 ? 's' : ''} omitida${skipped.length !== 1 ? 's' : ''} (festivo, fin de semana u ocupado).`
+        : '';
+
+      Toast.show(
+        `Serie creada: ${savedCount} reservación${savedCount !== 1 ? 'es' : ''}.${skipMsg}`,
+        'success'
+      );
+
+      // Wait for all data to be persisted before redirecting
+      await new Promise(resolve => setTimeout(resolve, 500));
+      window.location.href = _backUrl();
+    } catch (err) {
+      console.error('Error saving recurring series:', err);
+      Toast.show('Error al crear la serie. Intenta nuevamente.', 'error');
+    }
   }
 
   /* ════════════════════════════════════════

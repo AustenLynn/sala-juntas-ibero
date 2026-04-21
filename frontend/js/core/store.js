@@ -25,6 +25,10 @@ const Store = (() => {
   /** Actualiza estado (merge) */
   const setState = (updates) => {
     state = { ...state, ...updates };
+    // Populate responsible history if reservations were updated
+    if (updates.reservations) {
+      _populateResponsibleHistory();
+    }
     _notifyListeners();
   };
 
@@ -107,6 +111,18 @@ const Store = (() => {
       if (state.responsibleHistory.length > 50) state.responsibleHistory.pop();
       persist();
     }
+  };
+
+  const _populateResponsibleHistory = () => {
+    const seen = new Set();
+    state.reservations.forEach(r => {
+      if (r.responsible && !seen.has(r.responsible)) {
+        seen.add(r.responsible);
+        if (!state.responsibleHistory.includes(r.responsible)) {
+          state.responsibleHistory.push(r.responsible);
+        }
+      }
+    });
   };
 
   return {

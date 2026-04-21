@@ -102,20 +102,47 @@ const Recurring = (() => {
   /* ════════════════════════════════════════
      SAVE — persiste grupo e instancias
      ════════════════════════════════════════ */
-  const save = ({ group, instances }) => {
+  const save = async ({ group, instances }) => {
     if (!instances.length) return 0;
 
     const state = Store.getState();
     Store.setState({ recurringGroups: [...state.recurringGroups, group] });
-    instances.forEach(r => Store.addReservation(r));
 
-    Notifications.onReservationCreated({
-      ...instances[0],
-      _batchCount: instances.length,
-    });
+    // Save each instance to the API
+    let savedCount = 0;
+    const savedInstances = [];
+    for (const r of instances) {
+      try {
+        const apiData = {
+          responsible_name: r.responsible,
+          area: r.area,
+          start_time: `${r.date}T${r.startTime}:00Z`,
+          end_time: `${r.date}T${r.endTime}:00Z`,
+          observations: r.observations,
+          is_recurring: true,
+          recurring_group: group.id,
+        };
+        const apiResponse = await API.createReservation(apiData);
+        // Add the API response (properly normalized) to Store
+        if (apiResponse) {
+          Store.addReservation(apiResponse);
+          savedInstances.push(apiResponse);
+          savedCount++;
+        }
+      } catch (err) {
+        console.error('Error saving recurring instance:', err);
+      }
+    }
 
-    Store.persist();
-    return instances.length;
+    if (savedCount > 0) {
+      Notifications.onReservationCreated({
+        ...savedInstances[0],
+        _batchCount: savedCount,
+      });
+      Store.persist();
+    }
+
+    return savedCount;
   };
 
   /* ════════════════════════════════════════

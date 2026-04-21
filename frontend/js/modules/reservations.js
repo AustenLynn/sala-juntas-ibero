@@ -90,12 +90,35 @@ const Reservations = (() => {
   const getAll = () => Store.getState().reservations;
   const getById = (id) => Store.getState().reservations.find(r => r.id === id) ?? null;
 
+  /* ════════════════════════════════════════
+     OVERLAP DETECTION — HU-09
+     ════════════════════════════════════════ */
+  const checkOverlap = (date, startTime, endTime, excludeId = null) => {
+    const allRes = Store.getState().reservations;
+
+    for (const r of allRes) {
+      // Skip cancelled reservations and the reservation being edited
+      if (r.status === 'cancelled' || r.id === excludeId) continue;
+
+      // Only check reservations on the same date
+      if (r.date !== date) continue;
+
+      // Check time overlap: new period [start,end) overlaps with [rStart,rEnd)?
+      if (startTime < r.endTime && endTime > r.startTime) {
+        return r; // Return conflicting reservation
+      }
+    }
+
+    return null; // No conflict
+  };
+
   return {
     create,
     update,
     cancel,
     bulkCancel,
     getAll,
-    getById
+    getById,
+    checkOverlap
   };
 })();

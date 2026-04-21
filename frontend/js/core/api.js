@@ -64,6 +64,22 @@ const API = (() => {
     return str ? `?${str}` : '';
   };
 
+  // Normalize API responses to frontend format
+  const _normalizeReservation = (r) => ({
+    ...r,
+    date: r.start_time.split('T')[0],
+    startTime: r.start_time.split('T')[1].substring(0, 5),
+    endTime: r.end_time.split('T')[1].substring(0, 5),
+    responsible: r.responsible_name,
+    isRecurring: r.is_recurring,
+    recurringGroupId: r.recurring_group
+  });
+
+  const _normalizeHoliday = (h) => ({
+    ...h,
+    date: h.date.split('T')[0]
+  });
+
   // Auth
   const login = (email, password) =>
     _request('POST', '/auth/login', { email, password });
@@ -75,17 +91,25 @@ const API = (() => {
     _request('POST', '/auth/forgot-password', { email });
 
   // Reservations
-  const getReservations = (params = {}) =>
-    _request('GET', `/reservations${_qs(params)}`);
+  const getReservations = async (params = {}) => {
+    const data = await _request('GET', `/reservations${_qs(params)}`);
+    return Array.isArray(data) ? data.map(_normalizeReservation) : data;
+  };
 
-  const getReservation = (id) =>
-    _request('GET', `/reservations/${id}`);
+  const getReservation = async (id) => {
+    const data = await _request('GET', `/reservations/${id}`);
+    return _normalizeReservation(data);
+  };
 
-  const createReservation = (data) =>
-    _request('POST', '/reservations', data);
+  const createReservation = async (data) => {
+    const res = await _request('POST', '/reservations', data);
+    return _normalizeReservation(res);
+  };
 
-  const updateReservation = (id, data) =>
-    _request('PUT', `/reservations/${id}`, data);
+  const updateReservation = async (id, data) => {
+    const res = await _request('PUT', `/reservations/${id}`, data);
+    return _normalizeReservation(res);
+  };
 
   const cancelReservation = (id) =>
     _request('DELETE', `/reservations/${id}`);
@@ -94,11 +118,15 @@ const API = (() => {
     _request('DELETE', '/reservations/bulk', { ids });
 
   // Calendar / Holidays
-  const getHolidays = () =>
-    _request('GET', '/calendar/holidays');
+  const getHolidays = async () => {
+    const data = await _request('GET', '/calendar/holidays');
+    return Array.isArray(data) ? data.map(_normalizeHoliday) : data;
+  };
 
-  const createHoliday = (data) =>
-    _request('POST', '/calendar/holidays', data);
+  const createHoliday = async (data) => {
+    const res = await _request('POST', '/calendar/holidays', data);
+    return _normalizeHoliday(res);
+  };
 
   const deleteHoliday = (id) =>
     _request('DELETE', `/calendar/holidays/${id}`);
