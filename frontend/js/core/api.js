@@ -148,6 +148,10 @@ const API = (() => {
   const getDashboardStats = () =>
     _request('GET', '/stats/dashboard');
 
+  // Recurring groups
+  const createRecurringGroup = (data) =>
+    _request('POST', '/reservations/recurring-group', data);
+
   return {
     login,
     logout,
@@ -165,6 +169,7 @@ const API = (() => {
     createUser,
     updateUser,
     deactivateUser,
-    getDashboardStats
+    getDashboardStats,
+    createRecurringGroup
   };
 })();
