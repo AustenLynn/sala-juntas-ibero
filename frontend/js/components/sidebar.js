@@ -13,7 +13,6 @@ const Sidebar = (() => {
         label: 'Principal',
         items: [
           { id: 'dashboard',   href: 'dashboard.html',   label: 'Dashboard',         icon: 'grid' },
-          { id: 'reservacion', href: 'reservacion.html', label: 'Nueva Reservación',  icon: 'plus-circle' },
         ]
       },
       {
