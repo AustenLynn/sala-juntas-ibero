@@ -5,10 +5,22 @@
    Plataforma Reservación Sala de Juntas · Ibero CDMX
    ============================================================ */
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   Store.init();
   const user = Auth.requireAuth();
   if (!user) return;
+
+  // Load fresh data from API (API is source of truth)
+  try {
+    const [reservations, holidays] = await Promise.all([
+      API.getReservations(),
+      API.getHolidays()
+    ]);
+    Store.setState({ reservations, holidays });
+  } catch (err) {
+    console.error('Error loading calendar data:', err);
+    Toast.show('Error cargando datos del calendario', 'error');
+  }
 
   const isSecretary = user.role === 'secretaria';
 
