@@ -240,8 +240,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function _onSubmit(e) {
     e.preventDefault();
+    console.log('[Submit] Form submitted. Checking validation...');
+    console.log('[Submit] Fields:', {
+      date: fieldDate.value,
+      start: fieldStart.value,
+      end: fieldEnd.value,
+      responsible: fieldResp.value.trim(),
+      area: fieldArea.value.trim(),
+      recurring: recurChk?.checked,
+      overlapConflict: overlapBox.classList.contains('is-conflict'),
+      btnDisabled: btnSubmit.disabled
+    });
 
-    if (!_validateAll()) return;
+    if (!_validateAll()) {
+      console.log('[Submit] Validation FAILED');
+      return;
+    }
+    console.log('[Submit] Validation passed');
 
     const data = {
       start_time:   `${fieldDate.value}T${fieldStart.value}:00Z`,
@@ -254,9 +269,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       // Recurring path (HU-27) — sólo en modo creación
       if (!isEditMode && recurChk?.checked) {
+        console.log('[Submit] Taking RECURRING path');
         await _submitRecurring(data);
         return;
       }
+      console.log('[Submit] Taking NORMAL path');
 
       // Normal path
       let result;
@@ -345,11 +362,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function _validateAll() {
     let ok = true;
-    ok = _validateField(fieldDate,  'err-date')        && ok;
-    ok = _validateField(fieldStart, 'err-start')       && ok;
-    ok = _validateField(fieldEnd,   'err-end')         && ok;
-    ok = _validateField(fieldResp,  'err-responsible') && ok;
-    ok = _validateField(fieldArea,  'err-area')        && ok;
+    const dateOk  = _validateField(fieldDate,  'err-date');
+    const startOk = _validateField(fieldStart, 'err-start');
+    const endOk   = _validateField(fieldEnd,   'err-end');
+    const respOk  = _validateField(fieldResp,  'err-responsible');
+    const areaOk  = _validateField(fieldArea,  'err-area');
+    ok = dateOk && startOk && endOk && respOk && areaOk;
+    console.log('[Validate]', { dateOk, startOk, endOk, respOk, areaOk });
 
     // No permitir guardar si hay traslape o rango inválido
     if (overlapBox.classList.contains('is-conflict')) {

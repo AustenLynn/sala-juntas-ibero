@@ -10,9 +10,18 @@ const statsRoutes = require('./routes/stats');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Disable ETag so browsers never get 304 Not Modified for API calls
+app.set('etag', false);
+
 // Middleware
 app.use(express.json());
 app.use(cors());
+
+// Disable caching for all API responses so clients always get fresh data
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
