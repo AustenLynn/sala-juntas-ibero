@@ -19,24 +19,32 @@ const Holidays = (() => {
 
   /**
    * Agrega una fecha especial.
-   * Si ya existe una entrada con la misma fecha y tipo, la reemplaza.
    * @param {{ date: string, name: string, type: 'holiday'|'closure' }} entry
    */
-  const add = ({ date, name, type }) => {
-    const existing = getAll().filter(h => !(h.date === date && h.type === type));
-    Store.setState({ holidays: [...existing, { date, name, type }] });
-    Store.persist();
+  const add = async ({ date, name, type }) => {
+    try {
+      const result = await API.createHoliday({ date, name, type });
+      Store.setState({ holidays: [...getAll(), result] });
+      return { success: true };
+    } catch (err) {
+      console.error('Add holiday error:', err);
+      return { success: false, error: err.message };
+    }
   };
 
   /**
-   * Elimina una fecha especial por fecha + tipo.
-   * @param {string} date
-   * @param {'holiday'|'closure'} type
+   * Elimina una fecha especial por ID.
+   * @param {string} id
    */
-  const remove = (date, type) => {
-    const filtered = getAll().filter(h => !(h.date === date && h.type === type));
-    Store.setState({ holidays: filtered });
-    Store.persist();
+  const remove = async (id) => {
+    try {
+      await API.deleteHoliday(id);
+      Store.setState({ holidays: getAll().filter(h => h.id !== id) });
+      return true;
+    } catch (err) {
+      console.error('Delete holiday error:', err);
+      return false;
+    }
   };
 
   /* ── VALIDACIÓN ── */
@@ -110,13 +118,15 @@ const Holidays = (() => {
 
     // Botones de eliminar
     el.querySelectorAll('.holiday-item__del').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const name = btn.closest('.holiday-item')
                         .querySelector('.holiday-item__name').textContent;
         if (!confirm(`¿Eliminar "${name}"?`)) return;
-        remove(btn.dataset.date, btn.dataset.type);
-        renderList(containerId, onChanged);
-        onChanged?.();
+        const success = await remove(btn.dataset.id || btn.dataset.date);
+        if (success) {
+          renderList(containerId, onChanged);
+          onChanged?.();
+        }
       });
     });
   };
