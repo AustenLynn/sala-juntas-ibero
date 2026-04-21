@@ -33,7 +33,7 @@ function _initLoginForm() {
 
   if (!form) return;
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     _clearError(errEl);
 
@@ -50,9 +50,8 @@ function _initLoginForm() {
     btnEl.classList.add('btn-loading');
     btnEl.textContent = 'Verificando...';
 
-    // Simular latencia de red (250ms)
-    setTimeout(() => {
-      const result = Auth.login(email, password);
+    try {
+      const result = await Auth.login(email, password);
 
       btnEl.disabled = false;
       btnEl.classList.remove('btn-loading');
@@ -69,7 +68,14 @@ function _initLoginForm() {
         pwdEl.value = '';
         emailEl.focus();
       }
-    }, 250);
+    } catch (err) {
+      btnEl.disabled = false;
+      btnEl.classList.remove('btn-loading');
+      btnEl.textContent = 'Iniciar Sesión';
+      _showError(errEl, 'Error de conexión. Intenta nuevamente.');
+      emailEl.classList.add('is-error');
+      pwdEl.classList.add('is-error');
+    }
   });
 
   // Limpiar estado de error al escribir
@@ -108,12 +114,16 @@ function _initForgotPassword() {
     forgotSuccess && forgotSuccess.classList.add('hidden');
   });
 
-  forgotForm && forgotForm.addEventListener('submit', (e) => {
+  forgotForm && forgotForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = forgotEmail.value.trim();
     if (!email) return;
 
-    const result = Auth.requestPasswordReset(email);
+    try {
+      await Auth.requestPasswordReset(email);
+    } catch (err) {
+      console.error('Password reset error:', err);
+    }
 
     // Mostrar mensaje genérico siempre
     forgotForm.style.display = 'none';
@@ -142,8 +152,8 @@ function fillDemo(role) {
   const errEl   = document.getElementById('login-error');
 
   const creds = {
-    secretaria: { email: 'julieta.esquinca@ibero.mx', password: 'Admin123!' },
-    academico:  { email: 'miguel.alvarez@ibero.mx',   password: 'Acad456!' }
+    secretaria: { email: 'secretaria@ibero.mx', password: 'Admin123!' },
+    academico:  { email: 'academico@ibero.mx',  password: 'Acad456!' }
   };
 
   if (creds[role] && emailEl && pwdEl) {

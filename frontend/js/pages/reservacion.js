@@ -217,15 +217,14 @@ document.addEventListener('DOMContentLoaded', () => {
      SUBMIT — HU-08 / HU-10
      ════════════════════════════════════════ */
 
-  function _onSubmit(e) {
+  async function _onSubmit(e) {
     e.preventDefault();
 
     if (!_validateAll()) return;
 
     const data = {
-      date:         fieldDate.value,
-      startTime:    fieldStart.value,
-      endTime:      fieldEnd.value,
+      start_time:   `${fieldDate.value}T${fieldStart.value}:00Z`,
+      end_time:     `${fieldDate.value}T${fieldEnd.value}:00Z`,
       responsible:  fieldResp.value.trim(),
       area:         fieldArea.value.trim(),
       observations: fieldObs.value.trim(),
@@ -238,24 +237,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Normal path
-    let result;
-    if (isEditMode) {
-      result = Reservations.update(editId, data);
-    } else {
-      result = Reservations.create(data);
-    }
+    try {
+      let result;
+      if (isEditMode) {
+        result = await Reservations.update(editId, data);
+      } else {
+        result = await Reservations.create(data);
+      }
 
-    if (!result.success) {
-      _setOverlapStatus('conflict', result.conflictWith);
-      Toast.show('No se puede guardar: hay un traslape de horario.', 'error');
-      return;
-    }
+      if (!result.success) {
+        _setOverlapStatus('conflict', result.conflictWith);
+        Toast.show('No se puede guardar: hay un traslape de horario.', 'error');
+        return;
+      }
 
-    const msg = isEditMode
-      ? 'Reservación actualizada correctamente.'
-      : 'Reservación creada correctamente.';
-    Toast.show(msg, 'success');
-    setTimeout(() => { window.location.href = _backUrl(); }, 900);
+      const msg = isEditMode
+        ? 'Reservación actualizada correctamente.'
+        : 'Reservación creada correctamente.';
+      Toast.show(msg, 'success');
+      setTimeout(() => { window.location.href = _backUrl(); }, 900);
+    } catch (err) {
+      console.error('Submit error:', err);
+      Toast.show('Error al guardar la reservación. Intenta nuevamente.', 'error');
+    }
   }
 
   /* ── RECURRING SUBMIT ── */

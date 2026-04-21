@@ -10,122 +10,85 @@ const Reservations = (() => {
   /* ════════════════════════════════════════
      CREATE — HU-08
      ════════════════════════════════════════ */
-  /**
-   * Crea una nueva reservación individual.
-   * @param {{ date, startTime, endTime, responsible, area, observations }} data
-   * @returns {{ success: true, reservation } | { success: false, error, conflictWith }}
-   */
-  const create = (data) => {
-    const conflict = checkOverlap(data.date, data.startTime, data.endTime);
-    if (conflict) return { success: false, error: 'overlap', conflictWith: conflict };
-
-    const r = _buildRecord(data);
-    Store.addReservation(r);
-    Notifications.onReservationCreated(r);
-    return { success: true, reservation: r };
+  const create = async (data) => {
+    try {
+      const reservation = await API.createReservation({
+        responsible_name: data.responsible.trim(),
+        area: data.area.trim(),
+        start_time: data.start_time,
+        end_time: data.end_time,
+        observations: (data.observations ?? '').trim()
+      });
+      Store.addReservation(reservation);
+      Notifications && Notifications.onReservationCreated(reservation);
+      return { success: true, reservation };
+    } catch (err) {
+      if (err.status === 409) {
+        return { success: false, error: 'overlap', conflictWith: err.data.conflictWith };
+      }
+      console.error('Create reservation error:', err);
+      return { success: false, error: err.message || 'Error creating reservation' };
+    }
   };
 
   /* ════════════════════════════════════════
      UPDATE — HU-10
      ════════════════════════════════════════ */
-  /**
-   * Actualiza una reservación existente.
-   * @param {string} id
-   * @param {{ date, startTime, endTime, responsible, area, observations }} data
-   * @returns {{ success: true } | { success: false, error, conflictWith }}
-   */
-  const update = (id, data) => {
-    const conflict = checkOverlap(data.date, data.startTime, data.endTime, id);
-    if (conflict) return { success: false, error: 'overlap', conflictWith: conflict };
-
-    Store.updateReservation(id, {
-      responsible:  data.responsible.trim(),
-      area:         data.area.trim(),
-      date:         data.date,
-      startTime:    data.startTime,
-      endTime:      data.endTime,
-      observations: (data.observations ?? '').trim(),
-      updatedAt:    new Date().toISOString(),
-    });
-
-    return { success: true };
+  const update = async (id, data) => {
+    try {
+      const reservation = await API.updateReservation(id, {
+        responsible_name: data.responsible.trim(),
+        area: data.area.trim(),
+        start_time: data.start_time,
+        end_time: data.end_time,
+        observations: (data.observations ?? '').trim()
+      });
+      Store.updateReservation(id, reservation);
+      return { success: true };
+    } catch (err) {
+      if (err.status === 409) {
+        return { success: false, error: 'overlap', conflictWith: err.data.conflictWith };
+      }
+      console.error('Update reservation error:', err);
+      return { success: false, error: err.message || 'Error updating reservation' };
+    }
   };
 
   /* ════════════════════════════════════════
      CANCEL — HU-11
      ════════════════════════════════════════ */
-  /**
-   * Cancela (soft-delete) una reservación.
-   * @param {string} id
-   * @returns {boolean}
-   */
-  const cancel = (id) => {
-    const r = getById(id);
-    if (!r) return false;
-    Store.updateReservation(id, {
-      status:      'cancelled',
-      cancelledAt: new Date().toISOString(),
-    });
-    Notifications.onReservationCancelled(r);
-    return true;
+  const cancel = async (id) => {
+    try {
+      const r = getById(id);
+      await API.cancelReservation(id);
+      Store.updateReservation(id, { status: 'cancelled' });
+      Notifications && Notifications.onReservationCancelled(r);
+      return true;
+    } catch (err) {
+      console.error('Cancel reservation error:', err);
+      return false;
+    }
   };
 
   /* ════════════════════════════════════════
      BULK CANCEL — HU-12
      ════════════════════════════════════════ */
-  /**
-   * Cancela múltiples reservaciones.
-   * @param {string[]} ids
-   * @returns {number}  — cantidad cancelada
-   */
-  const bulkCancel = (ids) => {
-    let count = 0;
-    ids.forEach(id => { if (cancel(id)) count++; });
-    return count;
+  const bulkCancel = async (ids) => {
+    try {
+      const result = await API.bulkCancelReservations(ids);
+      ids.forEach(id => Store.updateReservation(id, { status: 'cancelled' }));
+      return result.deleted || ids.length;
+    } catch (err) {
+      console.error('Bulk cancel error:', err);
+      return 0;
+    }
   };
 
   /* ════════════════════════════════════════
      READ
      ════════════════════════════════════════ */
-  const getAll   = ()   => Store.getState().reservations;
-  const getById  = (id) => Store.getState().reservations.find(r => r.id === id) ?? null;
-
-  /* ════════════════════════════════════════
-     OVERLAP CHECK — HU-09
-     ════════════════════════════════════════ */
-  /**
-   * Busca la primera reservación activa que traslape el horario dado.
-   * @param {string} date
-   * @param {string} startTime  — "HH:MM"
-   * @param {string} endTime    — "HH:MM"
-   * @param {string} [excludeId]  — excluir al editar la propia reservación
-   * @returns {object|null}  — reservación conflictiva o null
-   */
-  const checkOverlap = (date, startTime, endTime, excludeId = null) => {
-    const sameDay = Store.getReservations({ date, status: 'active' });
-    return sameDay.find(r =>
-      r.id !== excludeId &&
-      Utils.timesOverlap(startTime, endTime, r.startTime, r.endTime)
-    ) ?? null;
-  };
-
-  /* ════════════════════════════════════════
-     PRIVATE
-     ════════════════════════════════════════ */
-  const _buildRecord = (data) => ({
-    id:               Utils.uid(),
-    responsible:      data.responsible.trim(),
-    area:             data.area.trim(),
-    date:             data.date,
-    startTime:        data.startTime,
-    endTime:          data.endTime,
-    observations:     (data.observations ?? '').trim(),
-    status:           'active',
-    isRecurring:      false,
-    recurringGroupId: null,
-    createdBy:        Store.getUser()?.id ?? 'unknown',
-    createdAt:        new Date().toISOString(),
-  });
+  const getAll = () => Store.getState().reservations;
+  const getById = (id) => Store.getState().reservations.find(r => r.id === id) ?? null;
 
   return {
     create,
@@ -133,7 +96,6 @@ const Reservations = (() => {
     cancel,
     bulkCancel,
     getAll,
-    getById,
-    checkOverlap,
+    getById
   };
 })();

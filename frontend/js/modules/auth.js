@@ -8,30 +8,32 @@ const Auth = (() => {
   const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutos
 
   /* ── LOGIN ── */
-  const login = (email, password) => {
-    const { users } = Store.getState();
-    const user = users.find(
-      u => u.email === email && u.password === password && u.active
-    );
-    if (!user) return { success: false, error: 'Credenciales inválidas' };
+  const login = async (email, password) => {
+    try {
+      const result = await API.login(email, password);
 
-    // Actualizar último acceso
-    const updatedUser = { ...user, lastLogin: new Date().toISOString() };
-    Store.setState({
-      currentUser: updatedUser,
-      users: Store.getState().users.map(u => u.id === user.id ? updatedUser : u)
-    });
-    Store.persist();
+      // Store JWT token and session
+      localStorage.setItem('ibero_jwt', result.token);
+      localStorage.setItem('ibero_session', JSON.stringify(result.user));
+      localStorage.setItem('ibero_login_time', Date.now().toString());
 
-    localStorage.setItem('ibero_session', JSON.stringify(updatedUser));
-    localStorage.setItem('ibero_login_time', Date.now().toString());
-
-    return { success: true, role: user.role };
+      Store.setState({ currentUser: result.user });
+      return { success: true, role: result.user.role };
+    } catch (err) {
+      console.error('Login error:', err);
+      return { success: false, error: 'Credenciales inválidas' };
+    }
   };
 
   /* ── LOGOUT ── */
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await API.logout();
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
     Store.setState({ currentUser: null });
+    localStorage.removeItem('ibero_jwt');
     localStorage.removeItem('ibero_session');
     localStorage.removeItem('ibero_login_time');
     window.location.href = 'index.html';
@@ -41,7 +43,9 @@ const Auth = (() => {
   const checkSession = () => {
     const raw = localStorage.getItem('ibero_session');
     const loginTime = localStorage.getItem('ibero_login_time');
-    if (!raw || !loginTime) return null;
+    const token = localStorage.getItem('ibero_jwt');
+
+    if (!raw || !loginTime || !token) return null;
 
     const elapsed = Date.now() - parseInt(loginTime, 10);
     if (elapsed > SESSION_TIMEOUT) {
@@ -50,7 +54,6 @@ const Auth = (() => {
     }
 
     const user = JSON.parse(raw);
-    // Renovar timestamp en cada verificación
     localStorage.setItem('ibero_login_time', Date.now().toString());
     Store.setState({ currentUser: user });
     return user;
@@ -64,7 +67,6 @@ const Auth = (() => {
       return null;
     }
     if (requiredRole && user.role !== requiredRole) {
-      // Redirigir a su vista correcta
       if (user.role === 'secretaria') {
         window.location.href = 'dashboard.html';
       } else {
@@ -85,36 +87,15 @@ const Auth = (() => {
     return user;
   };
 
-  /* ── OLVIDÉ CONTRASEÑA (simulado) ── */
-  const requestPasswordReset = (email) => {
-    const { users } = Store.getState();
-    // No revelar si el email existe (seguridad)
-    const exists = users.some(u => u.email === email && u.active);
-
-    if (exists) {
-      // Simular envío de email en prototipo
-      Notifications && Notifications.logEmail({
-        to: email,
-        subject: 'Recuperación de contraseña — Sala de Juntas Ibero',
-        body: `Se ha enviado un enlace de recuperación de contraseña a ${email}.`
-      });
+  /* ── OLVIDÉ CONTRASEÑA ── */
+  const requestPasswordReset = async (email) => {
+    try {
+      await API.forgotPassword(email);
+      return { success: true, message: 'Si el correo existe, recibirás un enlace de recuperación.' };
+    } catch (err) {
+      console.error('Password reset request error:', err);
+      return { success: true, message: 'Si el correo existe, recibirás un enlace de recuperación.' };
     }
-
-    // Siempre responde genérico
-    return { success: true, message: 'Si el correo existe, recibirás un enlace de recuperación.' };
-  };
-
-  /* ── CAMBIAR CONTRASEÑA ── */
-  const changePassword = (userId, newPassword) => {
-    if (!Utils.isValidPassword(newPassword)) {
-      return { success: false, error: 'La contraseña debe tener al menos 8 caracteres.' };
-    }
-    const updated = Store.getState().users.map(u =>
-      u.id === userId ? { ...u, password: newPassword } : u
-    );
-    Store.setState({ users: updated });
-    Store.persist();
-    return { success: true };
   };
 
   /* ── TIMEOUT AUTOMÁTICO ── */
@@ -144,7 +125,6 @@ const Auth = (() => {
     requireRole,
     requireAuth,
     requestPasswordReset,
-    changePassword,
     startInactivityWatcher
   };
 })();
