@@ -251,14 +251,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       observations: fieldObs.value.trim(),
     };
 
-    // Recurring path (HU-27) — sólo en modo creación
-    if (!isEditMode && recurChk?.checked) {
-      _submitRecurring(data);
-      return;
-    }
-
-    // Normal path
     try {
+      // Recurring path (HU-27) — sólo en modo creación
+      if (!isEditMode && recurChk?.checked) {
+        await _submitRecurring(data);
+        return;
+      }
+
+      // Normal path
       let result;
       if (isEditMode) {
         result = await Reservations.update(editId, data);

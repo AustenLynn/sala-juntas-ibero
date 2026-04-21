@@ -108,6 +108,18 @@ const Recurring = (() => {
     const state = Store.getState();
     Store.setState({ recurringGroups: [...state.recurringGroups, group] });
 
+    // Create recurring group in DB first
+    try {
+      await API.request('POST', '/recurring-group', {
+        pattern: group.pattern,
+        endDate: group.endDate,
+        maxOccurrences: group.maxOccurrences
+      });
+    } catch (err) {
+      console.error('Error creating recurring group:', err);
+      // Continue anyway - group might already exist or we'll catch it when creating instances
+    }
+
     // Save each instance to the API
     let savedCount = 0;
     const savedInstances = [];

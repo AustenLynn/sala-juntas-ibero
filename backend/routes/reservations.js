@@ -8,6 +8,28 @@ const router = express.Router();
 // All reservations routes require authentication
 router.use(auth);
 
+// POST /api/reservations/recurring-group - Create recurring group (for HU-27)
+router.post('/recurring-group', requireRole('secretaria'), async (req, res) => {
+  const { pattern, endDate, maxOccurrences } = req.body;
+
+  if (!pattern || !['weekly', 'biweekly', 'monthly'].includes(pattern)) {
+    return res.status(400).json({ error: 'Invalid pattern' });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO recurring_groups (pattern, end_date, max_occurrences)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [pattern, endDate || null, maxOccurrences || null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error creating recurring group:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // GET /api/reservations - Get all reservations with optional filters
 router.get('/', async (req, res) => {
   const { status, dateFrom, dateTo, responsible } = req.query;
