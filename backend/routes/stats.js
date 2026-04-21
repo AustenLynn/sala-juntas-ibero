@@ -39,9 +39,9 @@ router.get('/dashboard', auth, requireRole('secretaria'), async (req, res) => {
 
     // Calculate occupancy percentage
     const allSlotsResult = await pool.query(
-      `SELECT COUNT(DISTINCT DATE(start_time)) as working_days
-       FROM generate_series(NOW()::date, (NOW() + interval '30 days')::date, '1 day'::interval) date
-       WHERE EXTRACT(dow FROM date) NOT IN (0, 6)`
+      `SELECT COUNT(*) as working_days
+       FROM generate_series(NOW()::date, (NOW() + interval '30 days')::date, '1 day'::interval) as date
+       WHERE EXTRACT(dow FROM date::timestamp) NOT IN (0, 6)`
     );
 
     const workingDays = parseInt(allSlotsResult.rows[0].working_days) || 1;
