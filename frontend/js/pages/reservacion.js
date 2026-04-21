@@ -347,8 +347,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         'success'
       );
 
-      debugger; // Pause here to inspect console before redirect
-
       // Wait for all data to be persisted before redirecting
       await new Promise(resolve => setTimeout(resolve, 500));
       window.location.href = _backUrl();
