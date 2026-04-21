@@ -45,46 +45,24 @@ const Store = (() => {
   };
   const _notifyListeners = () => _listeners.forEach(fn => fn(state));
 
-  /* ── Inicialización desde localStorage ── */
+  /* ── Inicialización ── */
   const init = () => {
-    // Cargar datos mock si localStorage está vacío
-    const stored = localStorage.getItem('ibero_reservations');
-    const storedUsers = localStorage.getItem('ibero_users');
-    const storedHolidays = localStorage.getItem('ibero_holidays');
-
-    state.reservations    = stored
-      ? JSON.parse(stored)
-      : (typeof MOCK_DATA !== 'undefined' ? MOCK_DATA.reservations : []);
-
-    state.recurringGroups = localStorage.getItem('ibero_recurring')
-      ? JSON.parse(localStorage.getItem('ibero_recurring'))
-      : (typeof MOCK_DATA !== 'undefined' ? MOCK_DATA.recurringGroups : []);
-
-    state.users           = storedUsers
-      ? JSON.parse(storedUsers)
-      : (typeof MOCK_DATA !== 'undefined' ? MOCK_DATA.users : []);
-
-    state.holidays        = storedHolidays
-      ? JSON.parse(storedHolidays)
-      : (typeof MOCK_DATA !== 'undefined' ? MOCK_DATA.holidays : []);
-
-    state.responsibleHistory = localStorage.getItem('ibero_responsible')
-      ? JSON.parse(localStorage.getItem('ibero_responsible'))
-      : (typeof MOCK_DATA !== 'undefined' ? MOCK_DATA.responsibleHistory : []);
-
-    state.notificationLog = localStorage.getItem('ibero_notif_log')
-      ? JSON.parse(localStorage.getItem('ibero_notif_log'))
-      : [];
+    // Restore session user from localStorage (JWT-based)
+    const sessionUser = localStorage.getItem('ibero_session');
+    if (sessionUser) {
+      try {
+        state.currentUser = JSON.parse(sessionUser);
+      } catch (e) {
+        // Invalid session, user will need to log in again
+      }
+    }
+    // Data arrays are loaded from API on page initialization
   };
 
   /* ── Persistencia ── */
   const persist = () => {
-    localStorage.setItem('ibero_reservations',  JSON.stringify(state.reservations));
-    localStorage.setItem('ibero_recurring',      JSON.stringify(state.recurringGroups));
-    localStorage.setItem('ibero_users',          JSON.stringify(state.users));
-    localStorage.setItem('ibero_holidays',       JSON.stringify(state.holidays));
-    localStorage.setItem('ibero_responsible',    JSON.stringify(state.responsibleHistory));
-    localStorage.setItem('ibero_notif_log',      JSON.stringify(state.notificationLog));
+    // Only persist session-related data; API is source of truth for data arrays
+    // (persist() is now a no-op for data arrays; kept for backward compatibility)
   };
 
   /* ── Helpers de reservaciones ── */
@@ -103,23 +81,20 @@ const Store = (() => {
 
   const addReservation = (r) => {
     state.reservations.push(r);
-    _updateResponsibleHistory(r.responsible);
-    persist();
+    _updateResponsibleHistory(r.responsible_name);
     _notifyListeners();
   };
 
   const updateReservation = (id, updates) => {
     const idx = state.reservations.findIndex(r => r.id === id);
     if (idx === -1) return false;
-    state.reservations[idx] = { ...state.reservations[idx], ...updates, updatedAt: new Date().toISOString() };
-    persist();
+    state.reservations[idx] = { ...state.reservations[idx], ...updates, updated_at: new Date().toISOString() };
     _notifyListeners();
     return true;
   };
 
   const removeReservations = (ids) => {
     state.reservations = state.reservations.filter(r => !ids.includes(r.id));
-    persist();
     _notifyListeners();
   };
 
