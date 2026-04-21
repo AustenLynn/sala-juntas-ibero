@@ -10,6 +10,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const user = Auth.requireAuth();
   if (!user) return;
 
+  // Secretarias should use the dashboard which already has calendar — redirect
+  if (user.role === 'secretaria') {
+    window.location.href = 'dashboard.html';
+    return;
+  }
+
   // Load fresh data from API (API is source of truth)
   try {
     const [reservations, holidays] = await Promise.all([
