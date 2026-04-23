@@ -40,8 +40,6 @@ services:
       - backend
     networks:
       - app-net
-    volumes:
-      - ./frontend:/usr/share/nginx/html
 
 volumes:
   pg_data:
