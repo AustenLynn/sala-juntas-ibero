@@ -309,14 +309,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     overlay.querySelector('#user-modal-save')?.addEventListener('click', async () => {
-      console.log('[admin-page] SAVE BUTTON CLICKED');
-
       const name  = overlay.querySelector('#um-name')?.value.trim()  ?? '';
       const email = overlay.querySelector('#um-email')?.value.trim() ?? '';
       const role  = overlay.querySelector('#um-role')?.value         ?? 'academico';
       const pwd   = overlay.querySelector('#um-password')?.value     ?? '';
-
-      console.log('[admin-page] Form data collected:', { name, email, role, pwdLength: pwd.length });
 
       // Clear errors
       ['um-err-name','um-err-email','um-err-pwd'].forEach(id => {
@@ -324,30 +320,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (el) { el.textContent = ''; el.classList.add('hidden'); }
       });
 
-      console.log('[admin-page] isEdit =', isEdit, ', editId =', editId);
-
       let result;
       if (isEdit) {
-        console.log('[admin-page] Calling Users.update()');
         const updates = { name, email, role };
         if (pwd) updates.password = pwd;
         result = await Users.update(editId, updates);
       } else {
-        console.log('[admin-page] Calling Users.create()');
         result = await Users.create({ name, email, role, password: pwd });
       }
 
-      console.log('[admin-page] Result from Users operation:', result);
-
       if (result.success) {
-        console.log('[admin-page] SUCCESS! Showing toast and closing modal');
         Toast.show(isEdit ? 'Usuario actualizado.' : 'Usuario creado.', 'success');
         close();
         _renderUsersGrid();
       } else {
-        console.warn('[admin-page] FAILED with error code:', result.error);
         const msg = Users.errorMessage(result.error);
-        // Route error to field
         const fieldMap = {
           missing_fields: 'um-err-name',
           invalid_email:  'um-err-email',
@@ -357,7 +344,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
         const errId = fieldMap[result.error] ?? 'um-err-name';
         const errEl = overlay.querySelector(`#${errId}`);
-        console.log('[admin-page] Displaying error in field:', errId, '|', msg);
         if (errEl) {
           errEl.textContent = msg;
           errEl.classList.remove('hidden');

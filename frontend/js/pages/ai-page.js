@@ -5,7 +5,7 @@
    Plataforma Reservación Sala de Juntas · Ibero CDMX
    ============================================================ */
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
 
   Store.init();
   const user = Auth.requireAuth();
@@ -15,6 +15,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (user.role !== 'secretaria') {
     window.location.href = 'calendar.html';
     return;
+  }
+
+  // Load reservations from API so overlap validation works
+  try {
+    const reservations = await API.getReservations();
+    Store.setState({ reservations });
+  } catch (err) {
+    console.warn('[AI Page] Could not load reservations:', err.message);
   }
 
   Sidebar.init('ai-panel');
@@ -160,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!result.date)        propDate?.focus();
     else if (!result.startTime) propStart?.focus();
     else if (!result.responsible) propRespon?.focus();
-    else                     propSave?.focus();
+    else                     btnSave?.focus();
   }
 
   function _hideProposal() {
@@ -256,17 +264,16 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ── Save proposal ── */
   btnSave?.addEventListener('click', _onSave);
 
-  function _onSave() {
+  async function _onSave() {
     const data = {
-      date:         propDate?.value,
-      startTime:    propStart?.value,
-      endTime:      propEnd?.value,
+      start_time:   `${propDate?.value}T${propStart?.value}:00Z`,
+      end_time:     `${propDate?.value}T${propEnd?.value}:00Z`,
       responsible:  propRespon?.value?.trim(),
       area:         propArea?.value?.trim(),
       observations: propObs?.value?.trim() ?? '',
     };
 
-    const result = Reservations.create(data);
+    const result = await Reservations.create(data);
     if (result.success) {
       Toast.show(`Reservación guardada para ${Utils.formatDateLong(data.date)}.`, 'success');
       _hideProposal();

@@ -28,22 +28,16 @@ const Users = (() => {
    * Returns Promise<{ success, user }> or Promise<{ success: false, error }>
    */
   async function create({ name, email, role, password }) {
-    console.log('[Users.create] START with:', { name, email, role, passwordLength: password?.length });
-
     if (!name?.trim() || !email?.trim() || !password?.trim()) {
-      console.warn('[Users.create] VALIDATION FAILED: missing_fields');
       return { success: false, error: 'missing_fields' };
     }
     if (!Utils.isValidEmail(email)) {
-      console.warn('[Users.create] VALIDATION FAILED: invalid_email');
       return { success: false, error: 'invalid_email' };
     }
     if (!Utils.isValidPassword(password)) {
-      console.warn('[Users.create] VALIDATION FAILED: weak_password');
       return { success: false, error: 'weak_password' };
     }
     if (getByEmail(email)) {
-      console.warn('[Users.create] VALIDATION FAILED: email_taken');
       return { success: false, error: 'email_taken' };
     }
 
@@ -54,22 +48,13 @@ const Users = (() => {
       password,
     };
 
-    console.log('[Users.create] VALIDATION PASSED, calling API.createUser()');
     try {
-      console.log('[Users.create] About to call API.createUser with:', newUser);
       const createdUser = await API.createUser(newUser);
-      console.log('[Users.create] API RESPONSE received:', createdUser);
-
       const { users } = Store.getState();
-      console.log('[Users.create] Current Store users count:', users.length);
       Store.setState({ users: [...users, createdUser] });
-      console.log('[Users.create] Store updated. New users count:', Store.getState().users.length);
-      console.log('[Users.create] SUCCESS:', createdUser);
       return { success: true, user: createdUser };
     } catch (err) {
-      console.error('[Users.create] API ERROR:', err);
-      console.error('[Users.create] Error status:', err.status);
-      console.error('[Users.create] Error data:', err.data);
+      console.error('Error creating user:', err);
       return { success: false, error: 'api_error' };
     }
   }

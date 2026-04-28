@@ -110,7 +110,7 @@ Si solo se menciona duración (ej. "2 horas"), calcula endTime = startTime + dur
           { role: 'user',   content: text },
         ],
         temperature: 0,
-        max_tokens:  256,
+        max_completion_tokens: 256,
       });
     } else {
       // Anthropic
