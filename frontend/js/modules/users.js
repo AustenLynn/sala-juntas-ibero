@@ -25,48 +25,62 @@ const Users = (() => {
 
   /**
    * create({ name, email, role, password })
-   * Returns { success, user } or { success: false, error }
+   * Returns Promise<{ success, user }> or Promise<{ success: false, error }>
    */
-  function create({ name, email, role, password }) {
+  async function create({ name, email, role, password }) {
+    console.log('[Users.create] START with:', { name, email, role, passwordLength: password?.length });
+
     if (!name?.trim() || !email?.trim() || !password?.trim()) {
+      console.warn('[Users.create] VALIDATION FAILED: missing_fields');
       return { success: false, error: 'missing_fields' };
     }
     if (!Utils.isValidEmail(email)) {
+      console.warn('[Users.create] VALIDATION FAILED: invalid_email');
       return { success: false, error: 'invalid_email' };
     }
     if (!Utils.isValidPassword(password)) {
+      console.warn('[Users.create] VALIDATION FAILED: weak_password');
       return { success: false, error: 'weak_password' };
     }
     if (getByEmail(email)) {
+      console.warn('[Users.create] VALIDATION FAILED: email_taken');
       return { success: false, error: 'email_taken' };
     }
 
     const newUser = {
-      id:        Utils.uid(),
       name:      name.trim(),
       email:     email.trim().toLowerCase(),
       role:      role === 'secretaria' ? 'secretaria' : 'academico',
-      password,                // stored plain in prototype; hash in prod
-      isAdmin:   false,
-      active:    true,
-      lastLogin: null,
-      createdAt: new Date().toISOString(),
+      password,
     };
 
-    const { users } = Store.getState();
-    Store.setState({ users: [...users, newUser] });
-    Store.persist();
+    console.log('[Users.create] VALIDATION PASSED, calling API.createUser()');
+    try {
+      console.log('[Users.create] About to call API.createUser with:', newUser);
+      const createdUser = await API.createUser(newUser);
+      console.log('[Users.create] API RESPONSE received:', createdUser);
 
-    return { success: true, user: newUser };
+      const { users } = Store.getState();
+      console.log('[Users.create] Current Store users count:', users.length);
+      Store.setState({ users: [...users, createdUser] });
+      console.log('[Users.create] Store updated. New users count:', Store.getState().users.length);
+      console.log('[Users.create] SUCCESS:', createdUser);
+      return { success: true, user: createdUser };
+    } catch (err) {
+      console.error('[Users.create] API ERROR:', err);
+      console.error('[Users.create] Error status:', err.status);
+      console.error('[Users.create] Error data:', err.data);
+      return { success: false, error: 'api_error' };
+    }
   }
 
   /* ── UPDATE ───────────────────────────────────────────── */
 
   /**
    * update(id, { name?, email?, role?, password? })
-   * Returns { success } or { success: false, error }
+   * Returns Promise<{ success }> or Promise<{ success: false, error }>
    */
-  function update(id, updates) {
+  async function update(id, updates) {
     const users = Store.getState().users;
     const idx   = users.findIndex(u => u.id === id);
     if (idx === -1) return { success: false, error: 'not_found' };
@@ -85,26 +99,30 @@ const Users = (() => {
       return { success: false, error: 'weak_password' };
     }
 
-    const updated = {
-      ...current,
+    const updatePayload = {
       ...(updates.name     ? { name:  updates.name.trim() }                        : {}),
       ...(updates.email    ? { email: updates.email.trim().toLowerCase() }         : {}),
       ...(updates.role     ? { role:  updates.role === 'secretaria' ? 'secretaria' : 'academico' } : {}),
       ...(updates.password ? { password: updates.password }                        : {}),
-      updatedAt: new Date().toISOString(),
     };
 
-    const newUsers  = [...users];
-    newUsers[idx]   = updated;
-    Store.setState({ users: newUsers });
-    Store.persist();
-
-    return { success: true };
+    try {
+      await API.updateUser(id, updatePayload);
+      const updated = { ...current, ...updatePayload, updatedAt: new Date().toISOString() };
+      const newUsers = [...users];
+      newUsers[idx] = updated;
+      Store.setState({ users: newUsers });
+      console.log('User updated:', id, updatePayload);
+      return { success: true };
+    } catch (err) {
+      console.error('Error updating user:', err);
+      return { success: false, error: 'api_error' };
+    }
   }
 
   /* ── ACTIVATE / DEACTIVATE ────────────────────────────── */
 
-  function deactivate(id) {
+  async function deactivate(id) {
     const user = getById(id);
     if (!user) return false;
     // Cannot deactivate self
@@ -112,20 +130,30 @@ const Users = (() => {
     return _setActive(id, false);
   }
 
-  function activate(id) {
+  async function activate(id) {
     return _setActive(id, true);
   }
 
-  function _setActive(id, active) {
+  async function _setActive(id, active) {
     const users = Store.getState().users;
     const idx   = users.findIndex(u => u.id === id);
     if (idx === -1) return false;
 
-    const newUsers = [...users];
-    newUsers[idx]  = { ...newUsers[idx], active, updatedAt: new Date().toISOString() };
-    Store.setState({ users: newUsers });
-    Store.persist();
-    return true;
+    try {
+      if (active) {
+        await API.updateUser(id, { active: true });
+      } else {
+        await API.deactivateUser(id);
+      }
+      const newUsers = [...users];
+      newUsers[idx]  = { ...newUsers[idx], active, updatedAt: new Date().toISOString() };
+      Store.setState({ users: newUsers });
+      console.log(`User ${active ? 'activated' : 'deactivated'}: ${id}`);
+      return true;
+    } catch (err) {
+      console.error('Error toggling user status:', err);
+      return false;
+    }
   }
 
   /* ── VALIDATION HELPERS ─────────────────────────────────── */
@@ -136,6 +164,7 @@ const Users = (() => {
     weak_password:  'La contraseña debe tener al menos 8 caracteres.',
     email_taken:    'Ya existe un usuario con ese correo electrónico.',
     not_found:      'Usuario no encontrado.',
+    api_error:      'Error al comunicarse con el servidor. Verifica tu conexión.',
   };
 
   function errorMessage(code) {

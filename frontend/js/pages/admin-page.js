@@ -229,8 +229,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         confirmText: `${u.active ? 'Desactivar' : 'Activar'}`,
         danger:      u.active,
       },
-      () => {
-        const ok = u.active ? Users.deactivate(id) : Users.activate(id);
+      async () => {
+        const ok = u.active ? await Users.deactivate(id) : await Users.activate(id);
         if (ok) {
           Toast.show(`Usuario ${action === 'desactivar' ? 'desactivado' : 'activado'}.`, 'success');
           _renderUsersGrid();
@@ -308,11 +308,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esc); }
     });
 
-    overlay.querySelector('#user-modal-save')?.addEventListener('click', () => {
+    overlay.querySelector('#user-modal-save')?.addEventListener('click', async () => {
+      console.log('[admin-page] SAVE BUTTON CLICKED');
+
       const name  = overlay.querySelector('#um-name')?.value.trim()  ?? '';
       const email = overlay.querySelector('#um-email')?.value.trim() ?? '';
       const role  = overlay.querySelector('#um-role')?.value         ?? 'academico';
       const pwd   = overlay.querySelector('#um-password')?.value     ?? '';
+
+      console.log('[admin-page] Form data collected:', { name, email, role, pwdLength: pwd.length });
 
       // Clear errors
       ['um-err-name','um-err-email','um-err-pwd'].forEach(id => {
@@ -320,20 +324,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (el) { el.textContent = ''; el.classList.add('hidden'); }
       });
 
+      console.log('[admin-page] isEdit =', isEdit, ', editId =', editId);
+
       let result;
       if (isEdit) {
+        console.log('[admin-page] Calling Users.update()');
         const updates = { name, email, role };
         if (pwd) updates.password = pwd;
-        result = Users.update(editId, updates);
+        result = await Users.update(editId, updates);
       } else {
-        result = Users.create({ name, email, role, password: pwd });
+        console.log('[admin-page] Calling Users.create()');
+        result = await Users.create({ name, email, role, password: pwd });
       }
 
+      console.log('[admin-page] Result from Users operation:', result);
+
       if (result.success) {
+        console.log('[admin-page] SUCCESS! Showing toast and closing modal');
         Toast.show(isEdit ? 'Usuario actualizado.' : 'Usuario creado.', 'success');
         close();
         _renderUsersGrid();
       } else {
+        console.warn('[admin-page] FAILED with error code:', result.error);
         const msg = Users.errorMessage(result.error);
         // Route error to field
         const fieldMap = {
@@ -341,10 +353,15 @@ document.addEventListener('DOMContentLoaded', async () => {
           invalid_email:  'um-err-email',
           email_taken:    'um-err-email',
           weak_password:  'um-err-pwd',
+          api_error:      'um-err-name',
         };
         const errId = fieldMap[result.error] ?? 'um-err-name';
         const errEl = overlay.querySelector(`#${errId}`);
-        if (errEl) { errEl.textContent = msg; errEl.classList.remove('hidden'); }
+        console.log('[admin-page] Displaying error in field:', errId, '|', msg);
+        if (errEl) {
+          errEl.textContent = msg;
+          errEl.classList.remove('hidden');
+        }
       }
     });
 
