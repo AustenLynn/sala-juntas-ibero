@@ -23,6 +23,7 @@ CREATE TABLE recurring_groups (
 -- Reservations table
 CREATE TABLE reservations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  responsible_id UUID REFERENCES users(id) ON DELETE SET NULL,
   responsible_name VARCHAR(200) NOT NULL,
   area VARCHAR(200) NOT NULL,
   start_time TIMESTAMPTZ NOT NULL,
@@ -71,6 +72,7 @@ CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_reservations_status ON reservations(status);
 CREATE INDEX idx_reservations_start_time ON reservations(start_time);
 CREATE INDEX idx_reservations_created_by ON reservations(created_by);
+CREATE INDEX idx_reservations_responsible_id ON reservations(responsible_id);
 CREATE INDEX idx_calendar_events_date ON calendar_events(date);
 CREATE INDEX idx_audit_log_user_id ON audit_log(user_id);
 CREATE INDEX idx_audit_log_timestamp ON audit_log(timestamp);

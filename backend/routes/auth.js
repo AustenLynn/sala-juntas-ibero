@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const pool = require('../db/pool');
 const { sign } = require('../utils/jwt');
 const auth = require('../middleware/auth');
+const { sendEmail, passwordResetEmail } = require('../utils/mailer');
 
 const router = express.Router();
 
@@ -89,11 +90,15 @@ router.post('/forgot-password', async (req, res) => {
     );
 
     if (result.rows.length > 0) {
-      // Log to audit_log (email sending would happen here)
       await pool.query(
         'INSERT INTO audit_log (user_id, action, entity) VALUES ($1, $2, $3)',
         [result.rows[0].id, 'password_reset_requested', 'user']
       );
+
+      // Send password reset email (non-blocking)
+      const resetLink = `${process.env.APP_URL || 'http://localhost:8080'}/reset-password.html?token=demo`;
+      const { subject, html } = passwordResetEmail(resetLink);
+      sendEmail(email, subject, html);
     }
 
     // Always return success regardless

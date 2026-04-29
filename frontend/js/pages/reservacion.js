@@ -16,19 +16,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   Sidebar.init('reservacion');
   Auth.startInactivityWatcher();
 
-  // 3. Load data from API if not already loaded (for autocomplete suggestions)
-  const state = Store.getState();
-  if (!state.reservations || state.reservations.length === 0) {
-    try {
-      const [reservations, holidays] = await Promise.all([
-        API.getReservations(),
-        API.getHolidays()
-      ]);
-      Store.setState({ reservations, holidays });
-    } catch (err) {
-      console.error('Error loading data:', err);
-    }
-  }
+  // 3. Load data from API — fetch independently so one failure doesn't block others
+  let _users = [];
+
+  await Promise.allSettled([
+    API.getReservations().then(r => Store.setState({ reservations: r })).catch(e => console.warn('reservations:', e.message)),
+    API.getHolidays().then(h => Store.setState({ holidays: h })).catch(e => console.warn('holidays:', e.message)),
+    API.getUsers().then(u => { _users = u || []; Store.setState({ users: u }); }).catch(e => console.warn('users:', e.message)),
+  ]);
 
   /* ── PARSEAR URL ── */
   const params    = new URLSearchParams(window.location.search);
@@ -73,12 +68,61 @@ document.addEventListener('DOMContentLoaded', async () => {
     _setCreateMode();
   }
 
-  /* ── AUTOCOMPLETADO DE RESPONSABLE (HU-15) ── */
-  Autocomplete.init(
-    fieldResp,
-    () => Store.getState().responsibleHistory,
-    { minChars: 2, onSelect: () => _validateField(fieldResp, 'err-responsible') }
-  );
+  /* ── SELECTOR DE RESPONSABLE (HU-15) ── */
+  const fieldRespId      = document.getElementById('field-responsible-id');
+  const newUserPanel     = document.getElementById('new-user-panel');
+  const newUserNameEl    = document.getElementById('new-user-name');
+  const newUserEmailEl   = document.getElementById('new-user-email');
+  const newUserPwdEl     = document.getElementById('new-user-password');
+  const newUserRoleEl    = document.getElementById('new-user-role');
+  const btnNewUserSave   = document.getElementById('btn-new-user-save');
+  const btnNewUserCancel = document.getElementById('btn-new-user-cancel');
+
+  _populateResponsibleSelect(_users);
+
+  fieldResp.addEventListener('change', () => {
+    if (fieldResp.value === '__new__') {
+      newUserPanel?.classList.remove('hidden');
+      newUserNameEl?.focus();
+    } else {
+      newUserPanel?.classList.add('hidden');
+      if (fieldRespId) fieldRespId.value = fieldResp.value;
+      _validateField(fieldResp, 'err-responsible');
+    }
+  });
+
+  btnNewUserCancel?.addEventListener('click', () => {
+    fieldResp.value = '';
+    if (fieldRespId) fieldRespId.value = '';
+    newUserPanel?.classList.add('hidden');
+    _validateField(fieldResp, 'err-responsible');
+  });
+
+  btnNewUserSave?.addEventListener('click', async () => {
+    const name     = newUserNameEl?.value?.trim();
+    const email    = newUserEmailEl?.value?.trim();
+    const password = newUserPwdEl?.value ?? '';
+    const role     = newUserRoleEl?.value ?? 'academico';
+
+    if (!name || !email || password.length < 8) {
+      Toast.show('Completa todos los campos. La contraseña debe tener al menos 8 caracteres.', 'error');
+      return;
+    }
+
+    try {
+      const created = await API.createUser({ name, email, password, role });
+      _users.push(created);
+      _populateResponsibleSelect(_users);
+      fieldResp.value = created.id;
+      if (fieldRespId) fieldRespId.value = created.id;
+      newUserPanel?.classList.add('hidden');
+      Toast.show(`Usuario "${name}" creado.`, 'success');
+      _validateField(fieldResp, 'err-responsible');
+    } catch (err) {
+      const msg = err.status === 409 ? 'El correo ya está registrado.' : 'Error al crear el usuario.';
+      Toast.show(msg, 'error');
+    }
+  });
 
   /* ── EVENT LISTENERS ── */
 
@@ -154,7 +198,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     fieldDate.value  = r.date;
     fieldStart.value = r.startTime;
     fieldEnd.value   = r.endTime;
-    fieldResp.value  = r.responsible;
+    if (r.responsible_id) fieldResp.value = r.responsible_id;
     fieldArea.value  = r.area;
     fieldObs.value   = r.observations ?? '';
 
@@ -259,12 +303,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('[Submit] Validation passed');
 
     const data = {
-      start_time:   `${fieldDate.value}T${fieldStart.value}:00Z`,
-      end_time:     `${fieldDate.value}T${fieldEnd.value}:00Z`,
-      responsible:  fieldResp.value.trim(),
-      area:         fieldArea.value.trim(),
-      observations: fieldObs.value.trim(),
+      start_time:     `${fieldDate.value}T${fieldStart.value}:00Z`,
+      end_time:       `${fieldDate.value}T${fieldEnd.value}:00Z`,
+      responsible_id: fieldResp.value,
+      area:           fieldArea.value.trim(),
+      observations:   fieldObs.value.trim(),
     };
+    console.log('[Submit] data being sent:', data);
+    console.log('[Submit] _users loaded:', _users.length, _users);
 
     try {
       // Recurring path (HU-27) — sólo en modo creación
@@ -284,8 +330,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       if (!result.success) {
-        _setOverlapStatus('conflict', result.conflictWith);
-        Toast.show('No se puede guardar: hay un traslape de horario.', 'error');
+        if (result.error === 'overlap') {
+          _setOverlapStatus('conflict', result.conflictWith);
+          Toast.show('No se puede guardar: hay un traslape de horario.', 'error');
+        } else {
+          Toast.show(result.error || 'Error al guardar la reservación. Intenta nuevamente.', 'error');
+        }
         return;
       }
 
@@ -312,7 +362,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       date: fieldDate.value,
       startTime: fieldStart.value,
       endTime: fieldEnd.value,
-      responsible: data.responsible,
+      responsible_id: data.responsible_id,
       area: data.area,
       observations: data.observations,
       frequency: freq,
@@ -369,6 +419,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const areaOk  = _validateField(fieldArea,  'err-area');
     ok = dateOk && startOk && endOk && respOk && areaOk;
     console.log('[Validate]', { dateOk, startOk, endOk, respOk, areaOk });
+
+    // Block if secretary started creating a user but hasn't finished
+    if (fieldResp.value === '__new__') {
+      Toast.show('Completa o cancela la creación del nuevo responsable.', 'warning');
+      ok = false;
+    }
 
     // No permitir guardar si hay traslape o rango inválido
     if (overlapBox.classList.contains('is-conflict')) {
@@ -433,5 +489,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     const ref = document.referrer;
     if (ref.includes('calendar.html')) return 'calendar.html';
     return 'dashboard.html';
+  }
+
+  function _populateResponsibleSelect(users) {
+    if (!fieldResp) return;
+    const current = fieldResp.value;
+    fieldResp.innerHTML = '<option value="">— Selecciona un responsable —</option>';
+    users.forEach(u => {
+      fieldResp.add(new Option(`${u.name} (${u.role})`, u.id));
+    });
+    fieldResp.add(new Option('+ Crear nuevo usuario…', '__new__'));
+    if (current && current !== '__new__') fieldResp.value = current;
   }
 });

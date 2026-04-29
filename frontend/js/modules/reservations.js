@@ -13,7 +13,7 @@ const Reservations = (() => {
   const create = async (data) => {
     try {
       const reservation = await API.createReservation({
-        responsible_name: data.responsible.trim(),
+        responsible_id: data.responsible_id,
         area: data.area.trim(),
         start_time: data.start_time,
         end_time: data.end_time,
@@ -37,7 +37,7 @@ const Reservations = (() => {
   const update = async (id, data) => {
     try {
       const reservation = await API.updateReservation(id, {
-        responsible_name: data.responsible.trim(),
+        responsible_id: data.responsible_id,
         area: data.area.trim(),
         start_time: data.start_time,
         end_time: data.end_time,

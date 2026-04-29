@@ -289,6 +289,21 @@
       padding: var(--space-4) 0;
     }
 
+    /* ── New user inline panel ── */
+    .new-user-panel {
+      background: var(--color-bg-alt);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+    }
+    .new-user-panel__title {
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-secondary);
+      margin-bottom: var(--space-3);
+    }
+    .new-user-panel .form-group { margin-bottom: var(--space-2); }
+
     /* ── Source badge ── */
     .ai-source-badge {
       font-size: 10px;
@@ -509,9 +524,9 @@
                     </svg>
                     Responsable <span class="required" aria-hidden="true">*</span>
                   </label>
-                  <input type="text" id="prop-responsible" class="form-input"
-                         placeholder="Nombre del responsable"
-                         maxlength="200" autocomplete="off" />
+                  <select id="prop-responsible" class="form-select">
+                    <option value="">— Selecciona un responsable —</option>
+                  </select>
                 </div>
 
                 <div class="form-group">
@@ -526,6 +541,37 @@
                   <input type="text" id="prop-area" class="form-input"
                          placeholder="Área o departamento"
                          maxlength="200" />
+                </div>
+              </div>
+
+              <!-- New user inline form (shown when "+ Crear nuevo usuario" is selected) -->
+              <div id="new-user-panel" class="new-user-panel hidden">
+                <p class="new-user-panel__title">Crear nuevo usuario</p>
+                <div class="form-group">
+                  <label class="form-label" for="new-user-name">Nombre completo</label>
+                  <input type="text" id="new-user-name" class="form-input"
+                         placeholder="Nombre completo" maxlength="200" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="new-user-email">Correo electrónico</label>
+                  <input type="email" id="new-user-email" class="form-input"
+                         placeholder="correo@ibero.mx" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="new-user-password">Contraseña temporal</label>
+                  <input type="password" id="new-user-password" class="form-input"
+                         placeholder="Mínimo 8 caracteres" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="new-user-role">Rol</label>
+                  <select id="new-user-role" class="form-select">
+                    <option value="academico">Académico</option>
+                    <option value="secretaria">Secretaria</option>
+                  </select>
+                </div>
+                <div style="display:flex;gap:var(--space-2);">
+                  <button class="btn btn-primary btn-sm" id="btn-new-user-save" type="button">Crear usuario</button>
+                  <button class="btn btn-ghost btn-sm"   id="btn-new-user-cancel" type="button">Cancelar</button>
                 </div>
               </div>
 

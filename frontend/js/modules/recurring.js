@@ -26,7 +26,7 @@ const Recurring = (() => {
    */
   const generate = (opts) => {
     const {
-      date, startTime, endTime, responsible, area, observations = '',
+      date, startTime, endTime, responsible_id, area, observations = '',
       frequency, count, endDate,
     } = opts;
 
@@ -79,7 +79,7 @@ const Recurring = (() => {
 
       instances.push({
         id:               Utils.uid(),
-        responsible:      responsible.trim(),
+        responsible_id,
         area:             area.trim(),
         date:             dateStr,
         startTime,
@@ -142,7 +142,7 @@ const Recurring = (() => {
     for (const r of instances) {
       try {
         const apiData = {
-          responsible_name: r.responsible,
+          responsible_id: r.responsible_id,
           area: r.area,
           start_time: `${r.date}T${r.startTime}:00Z`,
           end_time: `${r.date}T${r.endTime}:00Z`,

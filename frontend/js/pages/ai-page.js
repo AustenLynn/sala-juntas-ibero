@@ -17,13 +17,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // Load reservations from API so overlap validation works
-  try {
-    const reservations = await API.getReservations();
-    Store.setState({ reservations });
-  } catch (err) {
-    console.warn('[AI Page] Could not load reservations:', err.message);
-  }
+  // Load reservations and users from API
+  let _users = [];
+  await Promise.allSettled([
+    API.getReservations()
+      .then(r => Store.setState({ reservations: r }))
+      .catch(e => console.warn('[AI Page] reservations:', e.message)),
+    API.getUsers()
+      .then(u => { _users = u || []; })
+      .catch(e => console.warn('[AI Page] users:', e.message)),
+  ]);
 
   Sidebar.init('ai-panel');
   Auth.startInactivityWatcher();
@@ -52,6 +55,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnDiscard  = document.getElementById('btn-proposal-discard');
   const btnSave     = document.getElementById('btn-proposal-save');
 
+  // New user panel
+  const newUserPanel  = document.getElementById('new-user-panel');
+  const newUserName   = document.getElementById('new-user-name');
+  const newUserEmail  = document.getElementById('new-user-email');
+  const newUserPwd    = document.getElementById('new-user-password');
+  const newUserRole   = document.getElementById('new-user-role');
+  const btnNewUserSave   = document.getElementById('btn-new-user-save');
+  const btnNewUserCancel = document.getElementById('btn-new-user-cancel');
+
   // Suggestions
   const suggestDate = document.getElementById('suggest-date');
   const suggestList = document.getElementById('suggestions-list');
@@ -67,6 +79,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   /* ── Populate time selects ─────────────────────────────── */
   _populateTimeSelects();
+
+  /* ── Populate responsible select ───────────────────────── */
+  _populateResponsibleSelect();
 
   /* ── Load saved API config ─────────────────────────────── */
   _loadConfigUI();
@@ -134,10 +149,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function _showProposal(result) {
     // Populate fields
-    if (propDate)   propDate.value   = result.date        ?? '';
-    if (propRespon) propRespon.value = result.responsible ?? '';
-    if (propArea)   propArea.value   = result.area        ?? '';
-    if (propObs)    propObs.value    = result.observations ?? '';
+    if (propDate) propDate.value = result.date        ?? '';
+    if (propArea) propArea.value = result.area        ?? '';
+    if (propObs)  propObs.value  = result.observations ?? '';
+
+    // Try to match the AI's suggested name to an existing user
+    if (result.responsible) _tryMatchResponsible(result.responsible);
 
     // Populate time selects
     _setSelectValue(propStart, result.startTime ?? '');
@@ -158,17 +175,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Check overlap immediately
     _checkOverlap();
 
-    // Autocomplete on responsible field
-    Autocomplete.init(propRespon, () => Store.getState().responsibleHistory, {
-      minChars: 2,
-      onSelect: () => _validateProposal(),
-    });
-
     // Focus first incomplete field
-    if (!result.date)        propDate?.focus();
+    if (!result.date)           propDate?.focus();
     else if (!result.startTime) propStart?.focus();
-    else if (!result.responsible) propRespon?.focus();
-    else                     btnSave?.focus();
+    else if (!propRespon?.value) propRespon?.focus();
+    else                        btnSave?.focus();
   }
 
   function _hideProposal() {
@@ -186,7 +197,48 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   propStart?.addEventListener('change', _checkOverlap);
   propEnd?.addEventListener('change',   _checkOverlap);
-  [propRespon, propArea].forEach(el => el?.addEventListener('input', _validateProposal));
+  propArea?.addEventListener('input', _validateProposal);
+
+  propRespon?.addEventListener('change', () => {
+    if (propRespon.value === '__new__') {
+      newUserPanel?.classList.remove('hidden');
+      newUserName?.focus();
+    } else {
+      newUserPanel?.classList.add('hidden');
+    }
+    _validateProposal();
+  });
+
+  btnNewUserCancel?.addEventListener('click', () => {
+    if (propRespon) propRespon.value = '';
+    newUserPanel?.classList.add('hidden');
+    _validateProposal();
+  });
+
+  btnNewUserSave?.addEventListener('click', async () => {
+    const name     = newUserName?.value?.trim();
+    const email    = newUserEmail?.value?.trim();
+    const password = newUserPwd?.value ?? '';
+    const role     = newUserRole?.value ?? 'academico';
+
+    if (!name || !email || password.length < 8) {
+      Toast.show('Completa todos los campos. La contraseña debe tener al menos 8 caracteres.', 'error');
+      return;
+    }
+
+    try {
+      const created = await API.createUser({ name, email, password, role });
+      _users.push(created);
+      _populateResponsibleSelect();
+      if (propRespon) propRespon.value = created.id;
+      newUserPanel?.classList.add('hidden');
+      Toast.show(`Usuario "${name}" creado.`, 'success');
+      _validateProposal();
+    } catch (err) {
+      const msg = err.status === 409 ? 'El correo ya está registrado.' : 'Error al crear el usuario.';
+      Toast.show(msg, 'error');
+    }
+  });
 
   /* ── Overlap check ── */
   function _checkOverlap() {
@@ -249,7 +301,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const ok = propDate?.value
             && propStart?.value
             && propEnd?.value
-            && propRespon?.value?.trim()
+            && propRespon?.value && propRespon.value !== '__new__'
             && propArea?.value?.trim()
             && _currentOverlapState === 'available';
     btnSave.disabled = !ok;
@@ -266,11 +318,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function _onSave() {
     const data = {
-      start_time:   `${propDate?.value}T${propStart?.value}:00Z`,
-      end_time:     `${propDate?.value}T${propEnd?.value}:00Z`,
-      responsible:  propRespon?.value?.trim(),
-      area:         propArea?.value?.trim(),
-      observations: propObs?.value?.trim() ?? '',
+      start_time:     `${propDate?.value}T${propStart?.value}:00Z`,
+      end_time:       `${propDate?.value}T${propEnd?.value}:00Z`,
+      responsible_id: propRespon?.value,
+      area:           propArea?.value?.trim(),
+      observations:   propObs?.value?.trim() ?? '',
     };
 
     const result = await Reservations.create(data);
@@ -388,6 +440,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* ════════════════════════════════════════════════════════
      HELPERS
   ════════════════════════════════════════════════════════ */
+
+  function _populateResponsibleSelect() {
+    if (!propRespon) return;
+    const current = propRespon.value;
+    propRespon.innerHTML = '<option value="">— Selecciona un responsable —</option>';
+    _users.filter(u => u.active !== false).forEach(u => {
+      propRespon.add(new Option(`${u.name} (${u.role})`, u.id));
+    });
+    propRespon.add(new Option('+ Crear nuevo usuario…', '__new__'));
+    if (current && current !== '__new__') propRespon.value = current;
+  }
+
+  function _tryMatchResponsible(aiName) {
+    if (!aiName || !_users.length) return;
+    const words = aiName.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
+    const match = _users.find(u =>
+      words.some(w => u.name.toLowerCase().includes(w))
+    );
+    if (match) {
+      if (propRespon) propRespon.value = match.id;
+    } else {
+      // Pre-fill the new user name field so the secretary can quickly create them
+      if (newUserName) newUserName.value = aiName;
+    }
+    _validateProposal();
+  }
 
   function _setLoading(on, message = '') {
     loadingEl?.classList.toggle('is-visible', on);

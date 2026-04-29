@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db/pool');
 const auth = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
+const { sendEmail, reservationCreatedEmail, reservationCancelledEmail } = require('../utils/mailer');
 
 const router = express.Router();
 
@@ -92,7 +93,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/reservations - Create new reservation (secretaria only)
 router.post('/', requireRole('secretaria'), async (req, res) => {
   const {
-    responsible_name,
+    responsible_id,
     area,
     start_time,
     end_time,
@@ -101,11 +102,21 @@ router.post('/', requireRole('secretaria'), async (req, res) => {
     recurring_group
   } = req.body;
 
-  if (!responsible_name || !area || !start_time || !end_time) {
+  if (!responsible_id || !area || !start_time || !end_time) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
   try {
+    // Look up responsible user
+    const userResult = await pool.query(
+      'SELECT id, name, email FROM users WHERE id = $1 AND active = true',
+      [responsible_id]
+    );
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Responsible user not found' });
+    }
+    const responsible = userResult.rows[0];
+
     // Check for overlap with active reservations
     const overlapCheck = await pool.query(
       `SELECT id, responsible_name, start_time, end_time
@@ -127,12 +138,13 @@ router.post('/', requireRole('secretaria'), async (req, res) => {
     // Create reservation
     const result = await pool.query(
       `INSERT INTO reservations (
-        responsible_name, area, start_time, end_time,
+        responsible_id, responsible_name, area, start_time, end_time,
         observations, is_recurring, recurring_group, created_by, last_modified_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [
-        responsible_name,
+        responsible.id,
+        responsible.name,
         area,
         start_time,
         end_time,
@@ -151,6 +163,10 @@ router.post('/', requireRole('secretaria'), async (req, res) => {
       [req.user.id, 'create_reservation', 'reservations', result.rows[0].id]
     );
 
+    // Send confirmation email to responsible person (non-blocking)
+    const { subject, html } = reservationCreatedEmail(result.rows[0]);
+    sendEmail(responsible.email, subject, html);
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating reservation:', err);
@@ -161,13 +177,26 @@ router.post('/', requireRole('secretaria'), async (req, res) => {
 // PUT /api/reservations/:id - Update reservation (secretaria only)
 router.put('/:id', requireRole('secretaria'), async (req, res) => {
   const { id } = req.params;
-  const { responsible_name, area, start_time, end_time, observations } = req.body;
+  const { responsible_id, area, start_time, end_time, observations } = req.body;
 
   try {
     // Check if reservation exists
     const existing = await pool.query('SELECT * FROM reservations WHERE id = $1', [id]);
     if (existing.rows.length === 0) {
       return res.status(404).json({ error: 'Reservation not found' });
+    }
+
+    // Look up responsible user if provided
+    let responsible = null;
+    if (responsible_id) {
+      const userResult = await pool.query(
+        'SELECT id, name FROM users WHERE id = $1 AND active = true',
+        [responsible_id]
+      );
+      if (userResult.rows.length === 0) {
+        return res.status(400).json({ error: 'Responsible user not found' });
+      }
+      responsible = userResult.rows[0];
     }
 
     // Check for overlap (excluding current reservation)
@@ -187,16 +216,17 @@ router.put('/:id', requireRole('secretaria'), async (req, res) => {
     // Update reservation
     const result = await pool.query(
       `UPDATE reservations
-       SET responsible_name = COALESCE($2, responsible_name),
-           area = COALESCE($3, area),
-           start_time = COALESCE($4, start_time),
-           end_time = COALESCE($5, end_time),
-           observations = COALESCE($6, observations),
-           last_modified_by = $7,
-           updated_at = NOW()
+       SET responsible_id   = COALESCE($2, responsible_id),
+           responsible_name = COALESCE($3, responsible_name),
+           area             = COALESCE($4, area),
+           start_time       = COALESCE($5, start_time),
+           end_time         = COALESCE($6, end_time),
+           observations     = COALESCE($7, observations),
+           last_modified_by = $8,
+           updated_at       = NOW()
        WHERE id = $1
        RETURNING *`,
-      [id, responsible_name, area, start_time, end_time, observations, req.user.id]
+      [id, responsible?.id ?? null, responsible?.name ?? null, area, start_time, end_time, observations, req.user.id]
     );
 
     // Log to audit
@@ -235,6 +265,15 @@ router.delete('/:id', requireRole('secretaria'), async (req, res) => {
        VALUES ($1, $2, $3, $4)`,
       [req.user.id, 'cancel_reservation', 'reservations', id]
     );
+
+    // Send cancellation email to responsible person (non-blocking)
+    if (result.rows[0].responsible_id) {
+      const resp = await pool.query('SELECT email FROM users WHERE id = $1', [result.rows[0].responsible_id]);
+      if (resp.rows.length > 0) {
+        const { subject, html } = reservationCancelledEmail(result.rows[0]);
+        sendEmail(resp.rows[0].email, subject, html);
+      }
+    }
 
     res.status(204).send();
   } catch (err) {
