@@ -74,6 +74,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* ── Populate responsible select ───────────────────────── */
   _populateResponsibleSelect();
 
+  API.aiStatus().then(s => {
+    if (!s?.enabled) Toast.show('Asistente IA en modo local. Sin clave API configurada.', 'info');
+  });
+
   /* ════════════════════════════════════════════════════════
      EXAMPLE CHIPS
   ════════════════════════════════════════════════════════ */
@@ -111,7 +115,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    _setLoading(true, 'Analizando descripción…');
+    const aiOn = await API.aiStatus().catch(() => ({ enabled: false }));
+    _setLoading(true, aiOn.enabled ? 'Consultando IA…' : 'Procesando localmente…');
     _hideProposal();
 
     try {
@@ -151,11 +156,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Source badge
     if (sourceBadge) {
       sourceBadge.textContent = result.source === 'api' ? '🤖 API' : '📝 local';
-      sourceBadge.classList.toggle('is-api', result.source === 'api');
+      sourceBadge.classList.toggle('is-api',   result.source === 'api');
+      sourceBadge.classList.toggle('is-local', result.source !== 'api');
     }
     if (confidenceText) {
       const pct = Math.round((result.confidence ?? 0) * 100);
       confidenceText.textContent = `${pct}% confianza`;
+      confidenceText.className = 'ai-confidence';
+      if (pct >= 75)      confidenceText.classList.add('is-high');
+      else if (pct >= 40) confidenceText.classList.add('is-medium');
+      else                confidenceText.classList.add('is-low');
     }
 
     proposalEl?.classList.add('is-visible');
@@ -315,7 +325,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const result = await Reservations.create(data);
     if (result.success) {
-      Toast.show(`Reservación guardada para ${Utils.formatDateLong(data.date)}.`, 'success');
+      Toast.show(`Reservación guardada para ${Utils.formatDateLong(propDate?.value)}.`, 'success');
       _hideProposal();
       if (inputEl) inputEl.value = '';
       // Clear suggestions
@@ -414,8 +424,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (match) {
       if (propRespon) propRespon.value = match.id;
     } else {
-      // Pre-fill the new user name field so the secretary can quickly create them
       if (newUserName) newUserName.value = aiName;
+      if (propRespon)  propRespon.value  = '__new__';
+      newUserPanel?.classList.remove('hidden');
+      Toast.show(`"${aiName}" no está registrado. Completa los datos o cancela para elegir un usuario existente.`, 'info');
     }
     _validateProposal();
   }

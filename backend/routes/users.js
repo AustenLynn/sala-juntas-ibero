@@ -3,6 +3,12 @@ const bcrypt = require('bcryptjs');
 const pool = require('../db/pool');
 const auth = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
+const {
+  sendEmail,
+  welcomeEmail,
+  passwordChangedEmail,
+  accountDeactivatedEmail,
+} = require('../utils/mailer');
 
 const router = express.Router();
 
@@ -64,6 +70,11 @@ router.post('/', requireRole('secretaria'), async (req, res) => {
       [req.user.id, 'create_user', 'users', result.rows[0].id]
     );
 
+    // Welcome email (non-blocking)
+    const loginUrl = process.env.APP_URL || 'http://localhost:8080';
+    const { subject, html } = welcomeEmail(result.rows[0], loginUrl);
+    sendEmail(result.rows[0].email, subject, html);
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating user:', err);
@@ -118,6 +129,12 @@ router.put('/:id', requireRole('secretaria'), async (req, res) => {
       [req.user.id, 'update_user', 'users', id]
     );
 
+    // Notify on password change (non-blocking)
+    if (password) {
+      const { subject, html } = passwordChangedEmail(result.rows[0]);
+      sendEmail(result.rows[0].email, subject, html);
+    }
+
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error updating user:', err);
@@ -150,6 +167,10 @@ router.patch('/:id/deactivate', requireRole('secretaria'), async (req, res) => {
        VALUES ($1, $2, $3, $4)`,
       [req.user.id, 'deactivate_user', 'users', id]
     );
+
+    // Notify the deactivated user (non-blocking)
+    const { subject, html } = accountDeactivatedEmail(result.rows[0]);
+    sendEmail(result.rows[0].email, subject, html);
 
     res.json(result.rows[0]);
   } catch (err) {

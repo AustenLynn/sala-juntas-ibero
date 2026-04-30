@@ -80,6 +80,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   _populateResponsibleSelect(_users);
 
+  // Restore responsible selection in edit mode (must run after select is populated)
+  if (isEditMode && existingReservation?.responsible_id) {
+    fieldResp.value = existingReservation.responsible_id;
+  }
+
   fieldResp.addEventListener('change', () => {
     if (fieldResp.value === '__new__') {
       newUserPanel?.classList.remove('hidden');
@@ -198,7 +203,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     fieldDate.value  = r.date;
     fieldStart.value = r.startTime;
     fieldEnd.value   = r.endTime;
-    if (r.responsible_id) fieldResp.value = r.responsible_id;
     fieldArea.value  = r.area;
     fieldObs.value   = r.observations ?? '';
 

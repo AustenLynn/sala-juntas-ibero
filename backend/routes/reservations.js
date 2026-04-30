@@ -2,7 +2,12 @@ const express = require('express');
 const pool = require('../db/pool');
 const auth = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
-const { sendEmail, reservationCreatedEmail, reservationCancelledEmail } = require('../utils/mailer');
+const {
+  sendEmail,
+  reservationCreatedEmail,
+  reservationUpdatedEmail,
+  reservationCancelledEmail,
+} = require('../utils/mailer');
 
 const router = express.Router();
 
@@ -190,7 +195,7 @@ router.put('/:id', requireRole('secretaria'), async (req, res) => {
     let responsible = null;
     if (responsible_id) {
       const userResult = await pool.query(
-        'SELECT id, name FROM users WHERE id = $1 AND active = true',
+        'SELECT id, name, email FROM users WHERE id = $1 AND active = true',
         [responsible_id]
       );
       if (userResult.rows.length === 0) {
@@ -235,6 +240,30 @@ router.put('/:id', requireRole('secretaria'), async (req, res) => {
        VALUES ($1, $2, $3, $4)`,
       [req.user.id, 'update_reservation', 'reservations', id]
     );
+
+    // Compute which fields actually changed and notify the responsible person
+    const before = existing.rows[0];
+    const after  = result.rows[0];
+    const fieldLabels = {
+      responsible_name: 'responsable',
+      area: 'área',
+      start_time: 'inicio',
+      end_time: 'fin',
+      observations: 'observaciones',
+    };
+    const changes = Object.keys(fieldLabels).filter(k => {
+      const a = before[k] instanceof Date ? before[k].toISOString() : before[k];
+      const b = after[k]  instanceof Date ? after[k].toISOString()  : after[k];
+      return a !== b;
+    }).map(k => fieldLabels[k]);
+
+    if (changes.length && after.responsible_id) {
+      const userQ = await pool.query('SELECT email FROM users WHERE id = $1', [after.responsible_id]);
+      if (userQ.rows[0]?.email) {
+        const { subject, html } = reservationUpdatedEmail(after, changes);
+        sendEmail(userQ.rows[0].email, subject, html);
+      }
+    }
 
     res.json(result.rows[0]);
   } catch (err) {
@@ -294,7 +323,7 @@ router.delete('/bulk', requireRole('secretaria'), async (req, res) => {
     const result = await pool.query(
       `UPDATE reservations SET status = 'cancelled', updated_at = NOW()
        WHERE id = ANY($1::uuid[])
-       RETURNING id`,
+       RETURNING *`,
       [ids]
     );
 
@@ -304,6 +333,23 @@ router.delete('/bulk', requireRole('secretaria'), async (req, res) => {
        VALUES ($1, $2, $3, $4)`,
       [req.user.id, 'bulk_cancel_reservations', 'reservations', JSON.stringify({ count: result.rows.length })]
     );
+
+    // Send a cancellation email per affected reservation (non-blocking)
+    const responsibleIds = [...new Set(result.rows.map(r => r.responsible_id).filter(Boolean))];
+    if (responsibleIds.length) {
+      const usersQ = await pool.query(
+        'SELECT id, email FROM users WHERE id = ANY($1::uuid[])',
+        [responsibleIds]
+      );
+      const emailById = new Map(usersQ.rows.map(u => [u.id, u.email]));
+      for (const reservation of result.rows) {
+        const email = emailById.get(reservation.responsible_id);
+        if (email) {
+          const { subject, html } = reservationCancelledEmail(reservation);
+          sendEmail(email, subject, html);
+        }
+      }
+    }
 
     res.json({ deleted: result.rows.length });
   } catch (err) {

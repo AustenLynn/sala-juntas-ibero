@@ -7,6 +7,7 @@ const calendarRoutes = require('./routes/calendar');
 const usersRoutes = require('./routes/users');
 const statsRoutes = require('./routes/stats');
 const aiRoutes = require('./routes/ai');
+const { runMigrations } = require('./db/migrate');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -48,6 +49,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Backend server running on port ${PORT}`);
-});
+runMigrations()
+  .catch(err => console.error('[Startup] Migration error:', err))
+  .finally(() => {
+    app.listen(PORT, () => {
+      console.log(`Backend server running on port ${PORT}`);
+    });
+  });

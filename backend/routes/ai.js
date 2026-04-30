@@ -37,8 +37,8 @@ Dado un texto en español, extrae los siguientes campos y devuelve SOLO un objet
   "startTime": "HH:MM o null",
   "endTime": "HH:MM o null",
   "responsible": "nombre completo o cadena vacía",
-  "area": "área o departamento o cadena vacía",
-  "observations": "notas adicionales o cadena vacía"
+  "area": "Nombre completo y formal del área o departamento (expándelo si está abreviado; si no se menciona, usa cadena vacía)",
+  "observations": "Notas ampliadas y redactadas formalmente con toda la información relevante de la solicitud (propósito, participantes, requerimientos especiales, etc.); si no hay información adicional usa cadena vacía"
 }
 La fecha de hoy es ${todayStr}.
 Si se menciona "mañana", calcula la fecha correcta.

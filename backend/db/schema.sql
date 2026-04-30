@@ -8,6 +8,8 @@ CREATE TABLE users (
   is_admin BOOLEAN DEFAULT FALSE,
   active BOOLEAN DEFAULT TRUE,
   last_login TIMESTAMPTZ,
+  reset_token_hash VARCHAR(255),
+  reset_token_expires TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -69,6 +71,7 @@ CREATE TABLE backups (
 
 -- Create indexes for common queries
 CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_reset_token ON users(reset_token_hash) WHERE reset_token_hash IS NOT NULL;
 CREATE INDEX idx_reservations_status ON reservations(status);
 CREATE INDEX idx_reservations_start_time ON reservations(start_time);
 CREATE INDEX idx_reservations_created_by ON reservations(created_by);

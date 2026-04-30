@@ -59,6 +59,9 @@ const AI = (() => {
         if (result) return result;
       } catch (err) {
         console.warn('[AI] backend parse failed, falling back to local parser:', err.message);
+        if (typeof Toast !== 'undefined') {
+          Toast.show('No se pudo conectar con la IA. Se usó análisis local.', 'warning');
+        }
       }
     }
 
