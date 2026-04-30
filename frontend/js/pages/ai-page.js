@@ -68,23 +68,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const suggestDate = document.getElementById('suggest-date');
   const suggestList = document.getElementById('suggestions-list');
 
-  // Config
-  const btnToggleCfg = document.getElementById('btn-toggle-config');
-  const cfgPanel     = document.getElementById('ai-config-panel');
-  const cfgProvider  = document.getElementById('cfg-provider');
-  const cfgKey       = document.getElementById('cfg-key');
-  const cfgModel     = document.getElementById('cfg-model');
-  const btnSaveCfg   = document.getElementById('btn-save-config');
-  const btnClearCfg  = document.getElementById('btn-clear-config');
-
   /* ── Populate time selects ─────────────────────────────── */
   _populateTimeSelects();
 
   /* ── Populate responsible select ───────────────────────── */
   _populateResponsibleSelect();
-
-  /* ── Load saved API config ─────────────────────────────── */
-  _loadConfigUI();
 
   /* ════════════════════════════════════════════════════════
      EXAMPLE CHIPS
@@ -400,41 +388,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         Toast.show(`Horario ${start}–${end} seleccionado.`, 'info');
       });
     });
-  }
-
-  /* ════════════════════════════════════════════════════════
-     API CONFIG
-  ════════════════════════════════════════════════════════ */
-
-  btnToggleCfg?.addEventListener('click', () => {
-    const isOpen = cfgPanel?.classList.contains('is-open');
-    cfgPanel?.classList.toggle('is-open', !isOpen);
-    btnToggleCfg?.setAttribute('aria-expanded', String(!isOpen));
-  });
-
-  btnSaveCfg?.addEventListener('click', () => {
-    AI.configure({
-      provider: cfgProvider?.value ?? 'anthropic',
-      apiKey:   cfgKey?.value?.trim() ?? '',
-      model:    cfgModel?.value?.trim() ?? '',
-    });
-    Toast.show('Configuración de API guardada.', 'success');
-    cfgPanel?.classList.remove('is-open');
-    btnToggleCfg?.setAttribute('aria-expanded', 'false');
-  });
-
-  btnClearCfg?.addEventListener('click', () => {
-    AI.configure({ apiKey: '', model: '' });
-    if (cfgKey)   cfgKey.value   = '';
-    if (cfgModel) cfgModel.value = '';
-    Toast.show('Clave de API eliminada. Se usará análisis local.', 'info');
-  });
-
-  function _loadConfigUI() {
-    const cfg = AI.getConfig();
-    if (cfgProvider) cfgProvider.value = cfg.provider ?? 'anthropic';
-    if (cfgKey)      cfgKey.value      = cfg.apiKey   ?? '';
-    if (cfgModel)    cfgModel.value    = cfg.model    ?? '';
   }
 
   /* ════════════════════════════════════════════════════════

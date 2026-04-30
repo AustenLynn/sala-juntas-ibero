@@ -9,34 +9,22 @@ const AI = (() => {
 
   /* ════════════════════════════════════════════════════════
      CONFIGURACIÓN
+     The API key/model live server-side in .env.
+     The frontend only knows whether the backend has AI enabled.
   ════════════════════════════════════════════════════════ */
 
-  const _CFG_KEY = 'ibero_ai_config';
+  let _enabled = null; // null = unknown, true/false once probed
 
-  let _cfg = _loadConfig();
-
-  function _loadConfig() {
+  async function _checkEnabled() {
+    if (_enabled !== null) return _enabled;
     try {
-      const stored = localStorage.getItem(_CFG_KEY);
-      return stored ? JSON.parse(stored) : {
-        provider:  'anthropic',          // 'anthropic' | 'openai'
-        apiKey:    '',
-        model:     'claude-haiku-4-5-20251001',
-        endpoint:  '',                   // override base URL (optional)
-      };
-    } catch { return { provider: 'anthropic', apiKey: '', model: 'claude-haiku-4-5-20251001', endpoint: '' }; }
+      const status = await API.aiStatus();
+      _enabled = Boolean(status?.enabled);
+    } catch {
+      _enabled = false;
+    }
+    return _enabled;
   }
-
-  /**
-   * configure(opts) — persists API settings.
-   * opts: { provider?, apiKey?, model?, endpoint? }
-   */
-  function configure(opts = {}) {
-    _cfg = { ..._cfg, ...opts };
-    localStorage.setItem(_CFG_KEY, JSON.stringify(_cfg));
-  }
-
-  function getConfig() { return { ..._cfg }; }
 
   /* ════════════════════════════════════════════════════════
      PARSE — Entrada de lenguaje natural → propuesta
@@ -64,92 +52,29 @@ const AI = (() => {
       return _emptyResult(text ?? '');
     }
 
-    if (_cfg.apiKey) {
+    const enabled = await _checkEnabled();
+    if (enabled) {
       try {
         const result = await _parseViaAPI(text);
         if (result) return result;
       } catch (err) {
-        console.warn('[AI] API parse failed, falling back to local parser:', err.message);
+        console.warn('[AI] backend parse failed, falling back to local parser:', err.message);
       }
     }
 
     return _parseLocal(text);
   }
 
-  /* ── API CALL ─────────────────────────────────────────── */
+  /* ── API CALL — proxied through backend ──────────────── */
 
   async function _parseViaAPI(text) {
-    const systemPrompt = `Eres un asistente que extrae datos de reservaciones de sala de juntas para la Universidad Iberoamericana.
-Dado un texto en español, extrae los siguientes campos y devuelve SOLO un objeto JSON válido, sin markdown ni texto adicional:
-{
-  "date": "YYYY-MM-DD o null",
-  "startTime": "HH:MM o null",
-  "endTime": "HH:MM o null",
-  "responsible": "nombre completo o cadena vacía",
-  "area": "área o departamento o cadena vacía",
-  "observations": "notas adicionales o cadena vacía"
-}
-La fecha de hoy es ${Utils.today()}.
-Si se menciona "mañana", calcula la fecha correcta.
-Si se menciona un día de la semana sin fecha, usa el próximo que ocurra.
-Si la hora es "3 de la tarde" o "15:00", usa formato 24h.
-Si solo se menciona duración (ej. "2 horas"), calcula endTime = startTime + duración.`;
-
-    let url, headers, body;
-
-    if (_cfg.provider === 'openai') {
-      url = _cfg.endpoint || 'https://api.openai.com/v1/chat/completions';
-      headers = {
-        'Content-Type':  'application/json',
-        'Authorization': `Bearer ${_cfg.apiKey}`,
-      };
-      body = JSON.stringify({
-        model:       _cfg.model || 'gpt-4o-mini',
-        messages:    [
-          { role: 'system', content: systemPrompt },
-          { role: 'user',   content: text },
-        ],
-        temperature: 0,
-        max_completion_tokens: 256,
-      });
-    } else {
-      // Anthropic
-      url = _cfg.endpoint || 'https://api.anthropic.com/v1/messages';
-      headers = {
-        'Content-Type':      'application/json',
-        'x-api-key':         _cfg.apiKey,
-        'anthropic-version': '2023-06-01',
-      };
-      body = JSON.stringify({
-        model:       _cfg.model || 'claude-haiku-4-5-20251001',
-        max_tokens:  256,
-        system:      systemPrompt,
-        messages:    [{ role: 'user', content: text }],
-      });
-    }
-
-    const response = await fetch(url, { method: 'POST', headers, body });
-
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`HTTP ${response.status}: ${err.slice(0, 120)}`);
-    }
-
-    const data = await response.json();
-    let raw;
-    if (_cfg.provider === 'openai') {
-      raw = data.choices?.[0]?.message?.content ?? '';
-    } else {
-      raw = data.content?.[0]?.text ?? '';
-    }
-
-    const parsed = _safeParseJSON(raw);
-    if (!parsed) throw new Error('API returned invalid JSON');
+    const parsed = await API.aiParse(text, Utils.today());
+    if (!parsed) throw new Error('Empty response from backend');
 
     return {
-      date:         _validateDate(parsed.date)        ?? null,
-      startTime:    _validateTime(parsed.startTime)   ?? null,
-      endTime:      _validateTime(parsed.endTime)     ?? null,
+      date:         _validateDate(parsed.date)      ?? null,
+      startTime:    _validateTime(parsed.startTime) ?? null,
+      endTime:      _validateTime(parsed.endTime)   ?? null,
       responsible:  String(parsed.responsible ?? '').trim(),
       area:         String(parsed.area ?? '').trim(),
       observations: String(parsed.observations ?? '').trim(),
@@ -443,5 +368,5 @@ Si solo se menciona duración (ej. "2 horas"), calcula endTime = startTime + dur
     } catch { return null; }
   }
 
-  return { configure, getConfig, parse, suggest };
+  return { parse, suggest };
 })();

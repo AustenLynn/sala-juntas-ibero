@@ -6,6 +6,7 @@ const reservationsRoutes = require('./routes/reservations');
 const calendarRoutes = require('./routes/calendar');
 const usersRoutes = require('./routes/users');
 const statsRoutes = require('./routes/stats');
+const aiRoutes = require('./routes/ai');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -29,6 +30,7 @@ app.use('/api/reservations', reservationsRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

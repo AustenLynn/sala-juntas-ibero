@@ -194,34 +194,6 @@
       gap: var(--space-3);
     }
 
-    /* ── API Config toggle ── */
-    .ai-config-toggle {
-      font-size: var(--font-size-xs);
-      color: var(--color-secondary-light);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: var(--space-1);
-      background: none;
-      border: none;
-      padding: 0;
-      text-decoration: underline dotted;
-      margin-left: auto;
-    }
-    .ai-config-toggle:hover { color: var(--color-primary); }
-
-    .ai-config-panel {
-      display: none;
-      background: var(--color-bg-alt);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-md);
-      padding: var(--space-4);
-      margin-top: var(--space-3);
-      gap: var(--space-3);
-      flex-direction: column;
-    }
-    .ai-config-panel.is-open { display: flex; }
-
     /* ── Suggestions sidebar ── */
     .ai-suggestions-card {
       background: var(--color-bg);
@@ -405,39 +377,6 @@
                 Procesar
               </button>
               <button class="btn btn-ghost btn-sm" id="btn-clear-input" type="button">Limpiar</button>
-              <button class="ai-config-toggle" id="btn-toggle-config" type="button"
-                      aria-expanded="false" aria-controls="ai-config-panel">
-                ⚙ Configurar API
-              </button>
-            </div>
-
-            <!-- API Config panel -->
-            <div class="ai-config-panel" id="ai-config-panel" role="region" aria-label="Configuración API">
-              <div class="form-group" style="margin:0;">
-                <label class="form-label" for="cfg-provider">Proveedor</label>
-                <select id="cfg-provider" class="form-select" style="height:36px;">
-                  <option value="anthropic">Anthropic (Claude)</option>
-                  <option value="openai">OpenAI (GPT)</option>
-                </select>
-              </div>
-              <div class="form-group" style="margin:0;">
-                <label class="form-label" for="cfg-key">API Key</label>
-                <input type="password" id="cfg-key" class="form-input"
-                       placeholder="sk-ant-... o sk-..." autocomplete="off" />
-              </div>
-              <div class="form-group" style="margin:0;">
-                <label class="form-label" for="cfg-model">Modelo <span class="form-hint">(opcional)</span></label>
-                <input type="text" id="cfg-model" class="form-input"
-                       placeholder="claude-haiku-4-5-20251001" />
-              </div>
-              <div style="display:flex;gap:var(--space-2);">
-                <button class="btn btn-primary btn-sm" id="btn-save-config">Guardar</button>
-                <button class="btn btn-ghost btn-sm"   id="btn-clear-config">Quitar clave</button>
-              </div>
-              <p style="font-size:11px;color:var(--color-secondary-light);margin:0;">
-                La clave se guarda solo en tu navegador (localStorage).
-                Sin clave, el asistente usa análisis de texto local.
-              </p>
             </div>
           </div><!-- /.ai-input-card -->
 

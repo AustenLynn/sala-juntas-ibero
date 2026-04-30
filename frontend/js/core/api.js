@@ -148,6 +148,13 @@ const API = (() => {
   const createRecurringGroup = (data) =>
     _request('POST', '/reservations/recurring-group', data);
 
+  // AI assistant
+  const aiStatus = () =>
+    _request('GET', '/ai/status');
+
+  const aiParse = (text, today) =>
+    _request('POST', '/ai/parse', { text, today });
+
   return {
     login,
     logout,
@@ -166,6 +173,8 @@ const API = (() => {
     updateUser,
     deactivateUser,
     getDashboardStats,
-    createRecurringGroup
+    createRecurringGroup,
+    aiStatus,
+    aiParse
   };
 })();
