@@ -3,6 +3,7 @@ services:
     name: sala-juntas-backend
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
     plan: free
     envVars:
       - key: DB_HOST
@@ -36,6 +37,7 @@ services:
     name: sala-juntas-frontend
     runtime: docker
     dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
     plan: free
     envVars:
       - key: BACKEND_URL
