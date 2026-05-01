@@ -9,6 +9,7 @@
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: var(--space-4);
   margin-bottom: var(--space-6);
+  flex-shrink: 0;
 }
 
 .stat-card {
@@ -59,7 +60,9 @@
   display: grid;
   grid-template-columns: 1fr 320px;
   gap: var(--space-6);
-  align-items: start;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
 }
 
 @media (max-width: 1024px) {
@@ -72,6 +75,15 @@
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+#calendar-body {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
 }
 
 .calendar-widget__header {
@@ -140,6 +152,9 @@
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .upcoming-panel__header {
@@ -157,7 +172,9 @@
 
 .upcoming-panel__body {
   padding: var(--space-3);
-  max-height: 480px;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
   overflow-y: auto;
 }
 

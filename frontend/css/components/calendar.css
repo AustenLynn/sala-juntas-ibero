@@ -11,7 +11,7 @@
 
 .cal-grid__weekdays {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   background: var(--color-bg-alt);
   border-bottom: 1px solid var(--color-border);
 }
@@ -28,7 +28,7 @@
 
 .cal-grid__days {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
 /* ── CELDA DE DÍA ── */
@@ -41,6 +41,7 @@
   transition: background var(--transition-fast);
   cursor: default;
   background: var(--color-bg);
+  overflow: hidden;
 }
 
 .cal-day:nth-child(7n) { border-right: none; }
@@ -417,7 +418,6 @@
 .cal-wk {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 /* ── Header fijo ── */
@@ -485,8 +485,7 @@
 /* ── Cuerpo scrolleable ── */
 .cal-wk__body {
   display: flex;
-  overflow-y: auto;
-  max-height: 504px; /* 8.4 horas visibles */
+  padding-top: 10px;
 }
 
 /* ── Gutter de horas ── */
@@ -568,7 +567,6 @@
 .cal-wk__ev-time {
   font-size: 10px;
   opacity: 0.85;
-  white-space: nowrap;
   overflow: hidden;
   line-height: 1.2;
 }
@@ -576,9 +574,8 @@
 .cal-wk__ev-name {
   font-size: 11px;
   font-weight: var(--font-weight-semibold);
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-word;
   line-height: 1.3;
 }
 

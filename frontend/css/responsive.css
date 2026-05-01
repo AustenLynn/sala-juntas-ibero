@@ -57,6 +57,11 @@ html, body {
   }
   .main-content {
     margin-left: 0;
+    height: auto;
+    overflow: visible;
+  }
+  .page-content {
+    overflow-y: visible;
   }
   .topbar__toggle {
     display: flex;

@@ -204,7 +204,8 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   min-width: 0;
 }
 
@@ -270,6 +271,10 @@
 .page-content {
   padding: var(--space-6);
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ── SIDEBAR OVERLAY (mobile) ── */

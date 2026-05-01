@@ -6,7 +6,7 @@
 
 const CalendarWeek = (() => {
 
-  const HOUR_START = 8;
+  const HOUR_START = 7;
   const HOUR_END   = 20;
   const SLOT_H     = 60;                              // px por hora
   const TOTAL_H    = (HOUR_END - HOUR_START) * SLOT_H; // 720px
@@ -157,13 +157,14 @@ const CalendarWeek = (() => {
       r.isRecurring ? 'is-recurring' : '',
     ].filter(Boolean).join(' ');
 
+    const showTime = endMin - startMin >= 60;
     return `
       <div class="${cls}"
            style="top:${startMin}px;height:${height}px;"
            data-id="${r.id}"
            role="button" tabindex="0"
            aria-label="${Utils.escapeHTML(r.responsible)}, ${r.startTime}–${r.endTime}">
-        <span class="cal-wk__ev-time">${r.startTime}–${r.endTime}</span>
+        ${showTime ? `<span class="cal-wk__ev-time">${r.startTime}–${r.endTime}</span>` : ''}
         <span class="cal-wk__ev-name">${Utils.escapeHTML(Utils.truncate(r.responsible, 22))}</span>
       </div>`;
   };
